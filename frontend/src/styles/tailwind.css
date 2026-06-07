@@ -1,0 +1,63 @@
+/* Fuente institucional Inter (respaldo por defecto) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Base del PORTAL PÚBLICO, acotada a .portal-publico (no toca el admin).
+   Todo dentro de :where(...) para peso CERO: las clases de Tailwind ganan.
+--------------------------------------------------------------------------- */
+@layer base {
+  :where(.portal-publico, .portal-publico *, .portal-publico *::before, .portal-publico *::after) {
+    box-sizing: border-box;
+  }
+
+  .portal-publico {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  :where(.portal-publico h1, .portal-publico h2, .portal-publico h3, .portal-publico h4, .portal-publico h5, .portal-publico h6, .portal-publico p, .portal-publico figure, .portal-publico ul, .portal-publico ol) {
+    margin: 0;
+  }
+
+  :where(.portal-publico img) {
+    max-width: 100%;
+    display: block;
+  }
+
+  :where(.portal-publico a) {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  :where(.portal-publico button, .portal-publico input, .portal-publico select, .portal-publico textarea) {
+    font: inherit;
+    color: inherit;
+  }
+  :where(.portal-publico button) {
+    background-color: transparent;
+    background-image: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .portal-publico ::selection {
+    background-color: var(--color-primario, #1D9E75);
+    color: #ffffff;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* El mapa de Leaflet trae controles con z-index muy alto que tapaban el menú
+   al hacer scroll. Esto "encierra" el mapa en una capa baja para que el header
+   siempre quede por encima. */
+.portal-publico .leaflet-container {
+  z-index: 0;
+}

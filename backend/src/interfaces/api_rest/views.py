@@ -3,13 +3,21 @@ from django.views.decorators.http import require_GET
 
 from src.domain.atractivos.models import Atractivo
 from src.domain.rutas.models import Ruta
-from src.domain.emprendimientos.models import Emprendimiento
+from src.domain.emprendimientos.models import Emprendimiento, EmprendimientoRelacion
 from src.domain.usuarios.models import Usuario
 from src.domain.eventos.models import Evento
 from src.domain.auditorias.models import HistorialPublicacion, Auditoria
 from src.domain.reportes.models import ReporteGenerado
 from src.domain.empresa.models import Empresa, Configuracion
+from django.db.models import F
+from src.domain.multimedia.models import Multimedia
 
+def _imagen_principal(tipo, entidad_id):
+    m = (Multimedia.objects
+         .filter(entidad_tipo=tipo, entidad_id=entidad_id, activo=True)
+         .order_by('-principal', 'orden')
+         .first())
+    return m.archivo if m else None
 
 @require_GET
 def api_root(request):
@@ -43,6 +51,8 @@ def atractivos_list(request):
         {
             'id': a.id,
             'nombre': a.nombre,
+            'imagen': _imagen_principal('atractivo', a.id),
+            'slug': a.slug,
             'descripcion': a.descripcion,
             'categoria': a.categoria.nombre if a.categoria_id else None,
             'parroquia': a.parroquia.nombre if a.parroquia_id else None,
@@ -69,13 +79,16 @@ def rutas_list(request):
             'distancia_km': float(r.distancia_km) if r.distancia_km is not None else None,
             'duracion_estimada': r.duracion_estimada,
             'dificultad': r.dificultad,
+            'num_atractivos': r.atractivos.filter(activo=True).count(),
+            'lat_inicio': float(r.lat_inicio) if r.lat_inicio is not None else None,
+            'lon_inicio': float(r.lon_inicio) if r.lon_inicio is not None else None,
+            'imagen': _imagen_principal('ruta', r.id),
             'destacado': r.destacado,
         }
         for r in rutas
     ]
 
     return JsonResponse({'results': data})
-
 
 @require_GET
 def emprendimientos_list(request):
@@ -89,6 +102,7 @@ def emprendimientos_list(request):
         {
             'id': e.id,
             'nombre': e.nombre,
+            'imagen': _imagen_principal('emprendimiento', e.id),
             'descripcion': e.descripcion,
             'categoria': e.categoria.nombre if e.categoria_id else None,
             'parroquia': e.parroquia.nombre if e.parroquia_id else None,
@@ -140,6 +154,7 @@ def eventos_list(request):
         {
             'id': e.id,
             'nombre': e.nombre,
+            'imagen': _imagen_principal('evento', e.id),
             'descripcion': e.descripcion,
             'categoria': e.categoria.nombre if e.categoria_id else None,
             'estado_publicacion': e.estado_publicacion.nombre if e.estado_publicacion_id else None,
@@ -156,7 +171,6 @@ def eventos_list(request):
     ]
 
     return JsonResponse({'results': data})
-
 
 @require_GET
 def publicaciones_list(request):
@@ -282,4 +296,223 @@ def configuracion_list(request):
             'sombra_global': apariencia.sombra_global,
         }
 
+    return JsonResponse(data)
+
+@require_GET
+def atractivos_detail(request, slug):
+    try:
+        a = (
+            Atractivo.objects
+            .select_related('categoria', 'parroquia', 'estado_publicacion')
+            .get(slug=slug, activo=True)
+        )
+    except Atractivo.DoesNotExist:
+        return JsonResponse({'error': 'Atractivo no encontrado'}, status=404)
+
+    # P-03 pide subir el contador de visitas en cada carga.
+    Atractivo.objects.filter(pk=a.pk).update(visitas=F('visitas') + 1)
+
+    # Galería: tabla multimedia (polimórfica). La principal va primero.
+    multimedia = [
+        {'archivo': m.archivo, 'titulo': m.titulo, 'tipo': m.tipo, 'principal': m.principal}
+        for m in Multimedia.objects
+            .filter(entidad_tipo='atractivo', entidad_id=a.id, activo=True)
+            .order_by('-principal', 'orden')
+    ]
+
+    detalles = None
+    if hasattr(a, 'detalle'):
+        d = a.detalle
+        detalles = {
+            'clima': d.clima, 'temperatura': d.temperatura, 'tipo_ingreso': d.tipo_ingreso,
+            'costo': float(d.costo) if d.costo is not None else None,
+            'horario': d.horario, 'formas_pago': d.formas_pago,
+            'meses_recomendados': d.meses_recomendados, 'observaciones': d.observaciones,
+        }
+
+    accesibilidad = None
+    if hasattr(a, 'accesibilidad'):
+        ac = a.accesibilidad
+        accesibilidad = {
+            'tipo_via': ac.tipo_via, 'estado_via': ac.estado_via,
+            'tipo_transporte': ac.tipo_transporte, 'tiempo_desplazamiento': ac.tiempo_desplazamiento,
+            'distancia_referencial_km': float(ac.distancia_referencial_km) if ac.distancia_referencial_km is not None else None,
+            'posee_senalizacion': ac.posee_senalizacion, 'acceso_discapacidad': ac.acceso_discapacidad,
+        }
+
+    servicios = [
+        {'nombre': s.servicio.nombre, 'icono': s.servicio.icono}
+        for s in a.atractivo_servicios.select_related('servicio').all()
+    ]
+    actividades = [
+        {'nombre': ac.actividad.nombre}
+        for ac in a.atractivo_actividades.select_related('actividad').all()
+    ]
+
+    emprendimientos_cercanos = [
+        {
+            'id': r.emprendimiento.id,
+            'nombre': r.emprendimiento.nombre,
+            'descripcion': r.emprendimiento.descripcion,
+            'imagen': _imagen_principal('emprendimiento', r.emprendimiento.id),
+            'categoria': r.emprendimiento.categoria.nombre if r.emprendimiento.categoria_id else None,
+            'distancia_referencial': float(r.distancia_referencial) if r.distancia_referencial is not None else None,
+        }
+        for r in EmprendimientoRelacion.objects
+            .filter(atractivo=a)
+            .select_related('emprendimiento', 'emprendimiento__categoria')
+    ]
+
+    data = {
+        'id': a.id,
+        'nombre': a.nombre,
+        'slug': a.slug,
+        'descripcion': a.descripcion,
+        'direccion': a.direccion,
+        'latitud': float(a.latitud) if a.latitud is not None else None,
+        'longitud': float(a.longitud) if a.longitud is not None else None,
+        'altitud': float(a.altitud) if a.altitud is not None else None,
+        'horario': a.horario,
+        'precio_referencial': float(a.precio_referencial) if a.precio_referencial is not None else None,
+        'visitas': a.visitas + 1,
+        'destacado': a.destacado,
+        'categoria': a.categoria.nombre if a.categoria_id else None,
+        'parroquia': a.parroquia.nombre if a.parroquia_id else None,
+        'estado_publicacion': a.estado_publicacion.nombre if a.estado_publicacion_id else None,
+        'detalles': detalles,
+        'accesibilidad': accesibilidad,
+        'servicios': servicios,
+        'actividades': actividades,
+        'multimedia': multimedia,
+        'emprendimientos_cercanos': emprendimientos_cercanos,
+    }
+    return JsonResponse(data)
+
+@require_GET
+def rutas_detail(request, ruta_id):
+    try:
+        r = (Ruta.objects
+             .select_related('parroquia', 'estado_publicacion')
+             .get(pk=ruta_id, activo=True))
+    except Ruta.DoesNotExist:
+        return JsonResponse({'error': 'Ruta no encontrada'}, status=404)
+
+    Ruta.objects.filter(pk=r.pk).update(visitas=F('visitas') + 1)
+
+    paradas = [
+        {
+            'orden': ra.orden_recorrido,
+            'atractivo': {
+                'id': ra.atractivo.id,
+                'nombre': ra.atractivo.nombre,
+                'slug': ra.atractivo.slug,
+                'descripcion': ra.atractivo.descripcion,
+                'imagen': _imagen_principal('atractivo', ra.atractivo.id),
+                'latitud': float(ra.atractivo.latitud) if ra.atractivo.latitud is not None else None,
+                'longitud': float(ra.atractivo.longitud) if ra.atractivo.longitud is not None else None,
+            },
+        }
+        for ra in r.atractivos.filter(activo=True).select_related('atractivo').order_by('orden_recorrido')
+    ]
+
+    multimedia = [
+        {'archivo': m.archivo, 'titulo': m.titulo, 'principal': m.principal}
+        for m in Multimedia.objects.filter(entidad_tipo='ruta', entidad_id=r.id, activo=True).order_by('-principal', 'orden')
+    ]
+
+    emprendimientos_cercanos = [
+        {
+            'id': rel.emprendimiento.id,
+            'nombre': rel.emprendimiento.nombre,
+            'descripcion': rel.emprendimiento.descripcion,
+            'categoria': rel.emprendimiento.categoria.nombre if rel.emprendimiento.categoria_id else None,
+            'distancia_referencial': float(rel.distancia_referencial) if rel.distancia_referencial is not None else None,
+            'imagen': _imagen_principal('emprendimiento', rel.emprendimiento.id),
+        }
+        for rel in EmprendimientoRelacion.objects.filter(ruta=r).select_related('emprendimiento', 'emprendimiento__categoria')
+    ]
+
+    data = {
+        'id': r.id,
+        'nombre': r.nombre,
+        'descripcion': r.descripcion,
+        'distancia_km': float(r.distancia_km) if r.distancia_km is not None else None,
+        'duracion_estimada': r.duracion_estimada,
+        'dificultad': r.dificultad,
+        'punto_inicio': r.punto_inicio,
+        'punto_fin': r.punto_fin,
+        'lat_inicio': float(r.lat_inicio) if r.lat_inicio is not None else None,
+        'lon_inicio': float(r.lon_inicio) if r.lon_inicio is not None else None,
+        'geojson_ruta': r.geojson_ruta,
+        'parroquia': r.parroquia.nombre if r.parroquia_id else None,
+        'destacado': r.destacado,
+        'visitas': r.visitas + 1,
+        'num_atractivos': len(paradas),
+        'paradas': paradas,
+        'multimedia': multimedia,
+        'emprendimientos_cercanos': emprendimientos_cercanos,
+    }
+    return JsonResponse(data)
+
+@require_GET
+def emprendimientos_detail(request, emp_id):
+    try:
+        e = (Emprendimiento.objects
+             .select_related('categoria', 'parroquia', 'estado_publicacion')
+             .get(pk=emp_id, activo=True))
+    except Emprendimiento.DoesNotExist:
+        return JsonResponse({'error': 'Emprendimiento no encontrado'}, status=404)
+
+    Emprendimiento.objects.filter(pk=e.pk).update(visitas=F('visitas') + 1)
+
+    multimedia = [
+        {'archivo': m.archivo, 'titulo': m.titulo, 'principal': m.principal}
+        for m in Multimedia.objects.filter(entidad_tipo='emprendimiento', entidad_id=e.id, activo=True).order_by('-principal', 'orden')
+    ]
+
+    servicios = [
+        {'nombre': s.servicio.nombre, 'icono': s.servicio.icono}
+        for s in e.servicios.select_related('servicio').all()
+    ]
+
+    redes_sociales = [
+        {'nombre_red': red.nombre_red, 'url': red.url}
+        for red in e.redes_sociales.filter(activo=True)
+    ]
+
+    atractivos_cercanos = [
+        {
+            'id': rel.atractivo.id,
+            'nombre': rel.atractivo.nombre,
+            'slug': rel.atractivo.slug,
+            'categoria': rel.atractivo.categoria.nombre if rel.atractivo.categoria_id else None,
+            'descripcion': rel.atractivo.descripcion,
+            'distancia_referencial': float(rel.distancia_referencial) if rel.distancia_referencial is not None else None,
+            'imagen': _imagen_principal('atractivo', rel.atractivo.id),
+        }
+        for rel in EmprendimientoRelacion.objects
+            .filter(emprendimiento=e, atractivo__isnull=False)
+            .select_related('atractivo', 'atractivo__categoria')
+    ]
+
+    data = {
+        'id': e.id,
+        'nombre': e.nombre,
+        'descripcion': e.descripcion,
+        'categoria': e.categoria.nombre if e.categoria_id else None,
+        'parroquia': e.parroquia.nombre if e.parroquia_id else None,
+        'direccion': e.direccion,
+        'telefono': e.telefono,
+        'email': e.email,
+        'sitio_web': e.sitio_web,
+        'horario': e.horario,
+        'latitud': float(e.latitud) if e.latitud is not None else None,
+        'longitud': float(e.longitud) if e.longitud is not None else None,
+        'visitas': e.visitas + 1,
+        'destacado': e.destacado,
+        'servicios': servicios,
+        'redes_sociales': redes_sociales,
+        'atractivos_cercanos': atractivos_cercanos,
+        'multimedia': multimedia,
+    }
     return JsonResponse(data)
