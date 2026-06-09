@@ -1,4 +1,7 @@
-function ReportesPage({ reportes }) {
+import { usePublicList } from '../hooks/usePublicList';
+
+function ReportesPage() {
+  const { items: reportes, loading, error } = usePublicList('/api/reportes/');
   return (
     <section className="panel-card">
       <div className="panel-header">

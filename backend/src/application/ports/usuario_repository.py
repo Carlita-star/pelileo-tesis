@@ -27,6 +27,11 @@ class UsuarioRepositoryPort(ABC):
         ...
  
     @abstractmethod
+    def autenticar(self, username_or_email: str, password: str) -> Optional[UsuarioEntity]:
+        """Autentica un usuario por username o email y contraseña clara."""
+        ...
+ 
+    @abstractmethod
     def listar_activos(self) -> List[UsuarioEntity]:
         ...
  

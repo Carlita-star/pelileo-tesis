@@ -1,4 +1,7 @@
-function EventosPage({ eventos }) {
+import { usePublicList } from '../hooks/usePublicList';
+
+function EventosPage() {
+  const { items: eventos, loading, error } = usePublicList('/api/eventos/');
   return (
     <section className="panel-card">
       <div className="panel-header">
@@ -9,7 +12,11 @@ function EventosPage({ eventos }) {
           </p>
         </div>
       </div>
-      {eventos && eventos.length === 0 ? (
+      {loading ? (
+        <p className="empty-state">Cargando eventos...</p>
+      ) : error ? (
+        <p className="status-error">{error}</p>
+      ) : eventos.length === 0 ? (
         <p className="empty-state">No hay eventos cargados en el sistema.</p>
       ) : (
         <div className="table-responsive">

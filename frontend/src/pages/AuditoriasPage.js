@@ -1,4 +1,7 @@
-function AuditoriasPage({ auditorias }) {
+import { usePublicList } from '../hooks/usePublicList';
+
+function AuditoriasPage() {
+  const { items: auditorias, loading, error } = usePublicList('/api/auditorias/');
   return (
     <section className="panel-card">
       <div className="panel-header">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useConfiguracion } from '../../../context/ConfiguracionContext';
+import { ADMIN_PATHS } from '../../../routes/adminPaths';
 
 function Header() {
   const config = useConfiguracion(); // <- toda la marca y el menú salen de aquí
@@ -40,7 +41,7 @@ function Header() {
           ))}
 
           <Link
-            to="/admin"
+            to={ADMIN_PATHS.login}
             className="ml-2 rounded-lg bg-primario px-4 py-2 text-sm font-semibold text-white transition hover:bg-primario-oscuro"
           >
             Iniciar sesión
@@ -65,7 +66,7 @@ function Header() {
           ))}
 
           <Link
-            to="/admin"
+            to={ADMIN_PATHS.login}
             className="mt-2 rounded-lg bg-primario px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-primario-oscuro"
             onClick={() => setAbierto(false)}
           >

@@ -10,129 +10,118 @@ import ConfiguracionPage from './ConfiguracionPage';
 import EventosPage from './EventosPage';
 import AuditoriasPage from './AuditoriasPage';
 
-function DashboardHome({ atractivos, rutas, backendStatus, error, apiBase }) {
-  const totalAtractivos = atractivos.length;
-  const totalRutas = rutas.length;
-  const publicacionesPendientes = Math.max(3, Math.floor(totalAtractivos / 4));
-  const emprendimientosActivos = 15;
+function DashboardHome({ summary, backendStatus, error, apiBase, onNavigate }) {
+  const {
+    totales = {
+      total_atractivos: 0,
+      total_rutas: 0,
+      total_emprendimientos: 0,
+      eventos_activos: 0,
+    },
+    estado_publicacion = {
+      publicados: 0,
+      en_borrador: 0,
+      inactivos: 0,
+    },
+    cambios_recientes = [],
+    atractivos_mas_visitados = [],
+  } = summary || {};
 
-  const recentActivity = useMemo(() => {
-    const items = [];
-    if (rutas.length > 0) {
-      items.push({
-        title: `Nueva ruta '${rutas[0].nombre}'`,
-        description: rutas[0].descripcion || 'Descripción disponible en el backend.',
-        time: '14:32',
-      });
-    }
-    if (atractivos.length > 0) {
-      items.push({
-        title: `Atractivo '${atractivos[0].nombre}' agregado`,
-        description: atractivos[0].categoria || 'Categoría no definida',
-        time: '13:15',
-      });
-    }
-    items.push({ title: 'Usuario nuevo registrado', description: 'Se creó un nuevo usuario en el sistema.', time: '11:40' });
-    items.push({ title: 'Publicación pendiente', description: 'Requiere revisión de contenido.', time: '10:10' });
-    return items;
-  }, [atractivos, rutas]);
+  const quickActions = [
+    { label: 'Nuevo Atractivo', page: 'atractivos' },
+    { label: 'Nueva Ruta', page: 'rutas' },
+    { label: 'Nuevo Emprendimiento', page: 'emprendimientos' },
+  ];
 
   return (
     <>
       <section className="overview-cards">
         <article className="overview-card blue">
-          <span className="card-label">Total Atractivos</span>
-          <strong>{totalAtractivos}</strong>
+          <span className="card-label">Total atractivos</span>
+          <strong>{totales.total_atractivos}</strong>
         </article>
         <article className="overview-card green">
-          <span className="card-label">Rutas Activas</span>
-          <strong>{totalRutas}</strong>
+          <span className="card-label">Total rutas</span>
+          <strong>{totales.total_rutas}</strong>
         </article>
         <article className="overview-card teal">
-          <span className="card-label">Emprendimientos</span>
-          <strong>{emprendimientosActivos}</strong>
+          <span className="card-label">Total emprendimientos</span>
+          <strong>{totales.total_emprendimientos}</strong>
         </article>
         <article className="overview-card orange">
-          <span className="card-label">Publicaciones Pendientes</span>
-          <strong>{publicacionesPendientes}</strong>
+          <span className="card-label">Eventos activos</span>
+          <strong>{totales.eventos_activos}</strong>
         </article>
       </section>
 
-      <section className="dashboard-grid">
+      <section className="state-cards">
+        <article className="overview-card purple">
+          <span className="card-label">Publicados</span>
+          <strong>{estado_publicacion.publicados}</strong>
+        </article>
+        <article className="overview-card pink">
+          <span className="card-label">En borrador</span>
+          <strong>{estado_publicacion.en_borrador}</strong>
+        </article>
+        <article className="overview-card gray">
+          <span className="card-label">Inactivos</span>
+          <strong>{estado_publicacion.inactivos}</strong>
+        </article>
+      </section>
+
+      <div className="dashboard-grid">
         <article className="panel-card activity-card">
           <div className="panel-header">
-            <h2>Actividad Reciente</h2>
+            <h2>Cambios recientes</h2>
           </div>
           <div className="activity-list">
-            {recentActivity.map((item, index) => (
-              <div key={index} className="activity-item">
-                <div>
-                  <strong>{item.title}</strong>
-                  <p>{item.description}</p>
+            {cambios_recientes.length === 0 ? (
+              <p className="empty-state">No hay actividad reciente.</p>
+            ) : (
+              cambios_recientes.map((item) => (
+                <div key={item.id} className="activity-item">
+                  <div>
+                    <strong>{item.usuario}</strong>
+                    <p>{`${item.accion} en ${item.tabla_afectada}`}</p>
+                  </div>
+                  <span>{new Date(item.fecha).toLocaleString()}</span>
                 </div>
-                <span>{item.time}</span>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="panel-card stats-card">
-          <div className="panel-header">
-            <h2>Tendencias de Visitantes</h2>
-          </div>
-          <div className="chart-legend">
-            <div className="chart-value">150</div>
-            <div className="chart-label">Jul 12 - Jul 18</div>
-          </div>
-          <div className="chart-lines">
-            {[150, 180, 210, 250, 310, 350, 290].map((value, index) => (
-              <div key={index} className="chart-point" style={{ height: `${value / 2}px` }} />
-            ))}
-          </div>
-          <div className="chart-axis">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-              <span key={day}>{day}</span>
-            ))}
+              ))
+            )}
           </div>
         </article>
 
         <article className="panel-card data-card">
           <div className="panel-header">
-            <h2>Atractivos</h2>
-            <span>{totalAtractivos} items</span>
+            <h2>Atractivos más visitados</h2>
+            <span>{atractivos_mas_visitados.length} items</span>
           </div>
-          {atractivos.length === 0 ? (
-            <p className="empty-state">No se encontraron atractivos.</p>
+          {atractivos_mas_visitados.length === 0 ? (
+            <p className="empty-state">No hay datos de visitas.</p>
           ) : (
             <ul>
-              {atractivos.slice(0, 4).map((item) => (
+              {atractivos_mas_visitados.map((item) => (
                 <li key={item.id}>
                   <strong>{item.nombre}</strong>
-                  <p>{item.parroquia || 'Parroquia no disponible'}</p>
+                  <p>{item.visitas.toLocaleString()} visitas</p>
                 </li>
               ))}
             </ul>
           )}
         </article>
+      </div>
 
-        <article className="panel-card data-card">
-          <div className="panel-header">
-            <h2>Rutas</h2>
-            <span>{totalRutas} rutas</span>
-          </div>
-          {rutas.length === 0 ? (
-            <p className="empty-state">No se encontraron rutas.</p>
-          ) : (
-            <ul>
-              {rutas.slice(0, 4).map((item) => (
-                <li key={item.id}>
-                  <strong>{item.nombre}</strong>
-                  <p>{item.dificultad || 'Dificultad sin definir'}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </article>
+      <section className="quick-actions">
+        {quickActions.map((action) => (
+          <button
+            key={action.label}
+            className="quick-action-button"
+            type="button"
+            onClick={() => onNavigate(action.page)}
+          >
+            {action.label}
+          </button>
+        ))}
       </section>
 
       <section className="status-panel">
@@ -156,6 +145,7 @@ function DashboardHome({ atractivos, rutas, backendStatus, error, apiBase }) {
 
 function DashboardPage({ apiBase, usuario, onLogout }) {
   const [backendStatus, setBackendStatus] = useState('Comprobando...');
+  const [dashboardSummary, setDashboardSummary] = useState(null);
   const [atractivos, setAtractivos] = useState([]);
   const [rutas, setRutas] = useState([]);
   const [emprendimientos, setEmprendimientos] = useState([]);
@@ -171,8 +161,9 @@ function DashboardPage({ apiBase, usuario, onLogout }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const [apiRes, atractivosRes, rutasRes, emprendimientosRes, usuariosRes, eventosRes, publicacionesRes, reportesRes, auditoriasRes, configuracionRes] = await Promise.all([
+        const [apiRes, summaryRes, atractivosRes, rutasRes, emprendimientosRes, usuariosRes, eventosRes, publicacionesRes, reportesRes, auditoriasRes, configuracionRes] = await Promise.all([
           fetch(`${apiBase}/api/`),
+          fetch(`${apiBase}/api/dashboard/`),
           fetch(`${apiBase}/api/atractivos/`),
           fetch(`${apiBase}/api/rutas/`),
           fetch(`${apiBase}/api/emprendimientos/`),
@@ -221,6 +212,11 @@ function DashboardPage({ apiBase, usuario, onLogout }) {
           setReportes(reportesJson.results || reportesJson || []);
         }
 
+        if (summaryRes.ok) {
+          const summaryJson = await summaryRes.json();
+          setDashboardSummary(summaryJson);
+        }
+
         if (auditoriasRes.ok) {
           const auditoriasJson = await auditoriasRes.json();
           setAuditorias(auditoriasJson.results || auditoriasJson || []);
@@ -242,7 +238,7 @@ function DashboardPage({ apiBase, usuario, onLogout }) {
   const pageContent = useMemo(() => {
     switch (currentPage) {
       case 'atractivos':
-        return <AtractivosPage atractivos={atractivos} />;
+        return <AtractivosPage apiBase={apiBase} />;
       case 'rutas':
         return <RutasPage rutas={rutas} />;
       case 'emprendimientos':
@@ -261,7 +257,15 @@ function DashboardPage({ apiBase, usuario, onLogout }) {
         return <ConfiguracionPage configuracion={configuracion} />;
       case 'dashboard':
       default:
-        return <DashboardHome atractivos={atractivos} rutas={rutas} backendStatus={backendStatus} error={error} apiBase={apiBase} />;
+        return (
+          <DashboardHome
+            summary={dashboardSummary}
+            backendStatus={backendStatus}
+            error={error}
+            apiBase={apiBase}
+            onNavigate={setCurrentPage}
+          />
+        );
     }
   }, [currentPage, atractivos, rutas, emprendimientos, usuarios, eventos, publicaciones, reportes, auditorias, configuracion, backendStatus, error, apiBase]);
 

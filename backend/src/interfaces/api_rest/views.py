@@ -1,5 +1,7 @@
-from django.http import JsonResponse
-from django.views.decorators.http import require_GET
+import json
+
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseForbidden, HttpResponseNotFound
+from django.views.decorators.http import require_GET, require_http_methods
 
 from src.domain.atractivos.models import Atractivo
 from src.domain.rutas.models import Ruta
@@ -11,6 +13,18 @@ from src.domain.reportes.models import ReporteGenerado
 from src.domain.empresa.models import Empresa, Configuracion
 from django.db.models import F
 from src.domain.multimedia.models import Multimedia
+from src.domain.catalogos.categorias import Categoria
+from src.domain.catalogos.parroquias import Parroquia
+from src.application.use_cases.dashboard_summary import ObtenerDashboardSummaryUseCase
+from src.application.use_cases.atractivos.listar_atractivos_admin import ListarAtractivosAdminUseCase
+from src.application.use_cases.atractivos.eliminar_atractivo_admin import EliminarAtractivoAdminUseCase
+from src.application.use_cases.atractivos.cambiar_estado_atractivo_admin import CambiarEstadoAtractivoAdminUseCase
+from src.application.use_cases.atractivos.obtener_atractivo_edicion import ObtenerAtractivoEdicionUseCase
+from src.application.use_cases.atractivos.guardar_atractivo import GuardarAtractivoUseCase
+from src.application.dto.atractivo_dto import AtractivoCompleteDTO, AtractivoGeneralDTO, AtractivoUbicacionDTO, AtractivoDetalleDTO, AtractivoAccesibilidadDTO, AtractivoEstadoConservacionDTO, AtractivoAdministracionDTO
+from src.infrastructure.repositories.django_dashboard_repository import DjangoDashboardRepository
+from src.infrastructure.repositories.django_atractivo_repository import DjangoAtractivoAdminRepository
+from src.interfaces.api_rest.auth_utils import admin_panel_required
 
 def _imagen_principal(tipo, entidad_id):
     m = (Multimedia.objects
@@ -33,6 +47,8 @@ def api_root(request):
                 "publicaciones": "/api/publicaciones/",
                 "reportes": "/api/reportes/",
                 "auditorias": "/api/auditorias/",
+                "admin_atractivos": "/api/admin/atractivos/",
+                "dashboard": "/api/dashboard/",
                 "configuracion": "/api/configuracion/",
             },
         }
@@ -232,6 +248,246 @@ def auditorias_list(request):
     ]
 
     return JsonResponse({'results': data})
+
+
+@require_GET
+@admin_panel_required
+def admin_atractivos_list(request):
+    search = request.GET.get('search')
+    categoria_id = request.GET.get('categoria_id')
+    parroquia_id = request.GET.get('parroquia_id')
+    estado_codigo = request.GET.get('estado')
+    page = request.GET.get('page', '1')
+    page_size = request.GET.get('page_size', '20')
+
+    try:
+        categoria_id = int(categoria_id) if categoria_id else None
+        parroquia_id = int(parroquia_id) if parroquia_id else None
+        page = int(page)
+        page_size = int(page_size)
+    except ValueError:
+        return HttpResponseBadRequest('Parámetros de paginación o filtro inválidos.')
+
+    summary = ListarAtractivosAdminUseCase(DjangoAtractivoAdminRepository()).execute(
+        search=search,
+        categoria_id=categoria_id,
+        parroquia_id=parroquia_id,
+        estado_codigo=estado_codigo,
+        page=page,
+        page_size=page_size,
+    )
+
+    return JsonResponse(summary)
+
+
+@require_http_methods(['DELETE'])
+@admin_panel_required
+def admin_atractivo_delete(request, atractivo_id):
+    success = EliminarAtractivoAdminUseCase(DjangoAtractivoAdminRepository()).execute(atractivo_id)
+    if not success:
+        return HttpResponseBadRequest('No se encontró el atractivo.')
+    return JsonResponse({'deleted': True})
+
+
+@require_http_methods(['POST'])
+@admin_panel_required
+def admin_atractivo_cambiar_estado(request, atractivo_id):
+    try:
+        payload = json.loads(request.body or '{}')
+        estado_codigo = payload.get('estado_codigo')
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('JSON inválido.')
+
+    if not estado_codigo:
+        return HttpResponseBadRequest('Debe especificar el estado a asignar.')
+
+    success = CambiarEstadoAtractivoAdminUseCase(DjangoAtractivoAdminRepository()).execute(
+        atractivo_id, estado_codigo
+    )
+    if not success:
+        return HttpResponseBadRequest('No se pudo cambiar el estado del atractivo.')
+
+    return JsonResponse({'updated': True})
+
+
+@require_GET
+@admin_panel_required
+def admin_atractivo_form_data(request):
+    """Obtiene datos iniciales para el formulario de nuevo atractivo."""
+    data = ObtenerAtractivoEdicionUseCase(DjangoAtractivoAdminRepository()).obtener_datos_iniciales()
+    return JsonResponse(data)
+
+
+@require_GET
+@admin_panel_required
+def admin_atractivo_get_for_edit(request, atractivo_id):
+    """Obtiene datos de un atractivo para editarlo."""
+    try:
+        atractivo_id = int(atractivo_id)
+    except ValueError:
+        return HttpResponseBadRequest('ID de atractivo inválido.')
+
+    data = ObtenerAtractivoEdicionUseCase(DjangoAtractivoAdminRepository()).execute(atractivo_id)
+    if not data:
+        return HttpResponseNotFound('Atractivo no encontrado.')
+
+    return JsonResponse(data)
+
+
+@require_http_methods(['POST', 'PUT'])
+@admin_panel_required
+def admin_atractivo_save(request, atractivo_id=None):
+    """Crea o actualiza un atractivo con todos sus datos relacionados."""
+    try:
+        payload = json.loads(request.body or '{}')
+        # Construir DTO
+        general_data = payload.get('general', {})
+        ubicacion_data = payload.get('ubicacion', {})
+        detalle_data = payload.get('detalle', {})
+        accesibilidad_data = payload.get('accesibilidad', {})
+        conservacion_data = payload.get('conservacion', {})
+        administracion_data = payload.get('administracion', {})
+        servicios_ids = payload.get('servicios_ids', [])
+        actividades_ids = payload.get('actividades_ids', [])
+        estado_codigo = payload.get('estado_publicacion_codigo', 'borrador')
+
+        dto = AtractivoCompleteDTO(
+            id=atractivo_id,
+            general=AtractivoGeneralDTO(
+                nombre=general_data.get('nombre'),
+                categoria_id=general_data.get('categoria_id'),
+                parroquia_id=general_data.get('parroquia_id'),
+                categoria_nombre=general_data.get('categoria_nombre'),
+                parroquia_nombre=general_data.get('parroquia_nombre'),
+                descripcion=general_data.get('descripcion'),
+                direccion=general_data.get('direccion'),
+                horario=general_data.get('horario'),
+                precio_referencial=general_data.get('precio_referencial'),
+                slug=general_data.get('slug'),
+            ),
+            ubicacion=AtractivoUbicacionDTO(
+                latitud=ubicacion_data.get('latitud'),
+                longitud=ubicacion_data.get('longitud'),
+                altitud=ubicacion_data.get('altitud'),
+            ),
+            detalle=AtractivoDetalleDTO(
+                clima=detalle_data.get('clima'),
+                temperatura=detalle_data.get('temperatura'),
+                precipitacion=detalle_data.get('precipitacion'),
+                linea_producto=detalle_data.get('linea_producto'),
+                escenario=detalle_data.get('escenario'),
+                tipo_ingreso=detalle_data.get('tipo_ingreso'),
+                costo=detalle_data.get('costo'),
+                formas_pago=detalle_data.get('formas_pago'),
+                meses_recomendados=detalle_data.get('meses_recomendados'),
+                observaciones=detalle_data.get('observaciones'),
+            ),
+            accesibilidad=AtractivoAccesibilidadDTO(
+                tipo_via=accesibilidad_data.get('tipo_via'),
+                estado_via=accesibilidad_data.get('estado_via'),
+                tipo_transporte=accesibilidad_data.get('tipo_transporte'),
+                tiempo_desplazamiento=accesibilidad_data.get('tiempo_desplazamiento'),
+                distancia_referencial_km=accesibilidad_data.get('distancia_referencial_km'),
+                posee_senalizacion=accesibilidad_data.get('posee_senalizacion'),
+                acceso_discapacidad=accesibilidad_data.get('acceso_discapacidad'),
+                observaciones=accesibilidad_data.get('observaciones'),
+            ),
+            conservacion=AtractivoEstadoConservacionDTO(
+                estado_conservacion=conservacion_data.get('estado_conservacion'),
+                nivel_seguridad=conservacion_data.get('nivel_seguridad'),
+                posee_senal_internet=conservacion_data.get('posee_senal_internet'),
+                cobertura_operadora=conservacion_data.get('cobertura_operadora'),
+                centro_salud_cercano=conservacion_data.get('centro_salud_cercano'),
+                distancia_centro_salud_km=conservacion_data.get('distancia_centro_salud_km'),
+                observaciones=conservacion_data.get('observaciones'),
+            ),
+            administracion=AtractivoAdministracionDTO(
+                tipo_administrador=administracion_data.get('tipo_administrador'),
+                institucion_responsable=administracion_data.get('institucion_responsable'),
+                nombre_administrador=administracion_data.get('nombre_administrador'),
+                cargo=administracion_data.get('cargo'),
+                telefono=administracion_data.get('telefono'),
+                correo=administracion_data.get('correo'),
+            ),
+            servicios_ids=servicios_ids,
+            actividades_ids=actividades_ids,
+            estado_publicacion_codigo=estado_codigo,
+        )
+
+        result = GuardarAtractivoUseCase(DjangoAtractivoAdminRepository()).execute(dto, request.jwt_user.id)
+        return JsonResponse(result, status=201 if not atractivo_id else 200)
+
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('JSON inválido.')
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e))
+    except Exception as e:
+        return HttpResponseBadRequest(f'Error al guardar: {str(e)}')
+
+
+def _upsert_categoria(nombre: str) -> dict:
+    nombre = nombre.strip()
+    if not nombre:
+        raise ValueError('El nombre de la categoría es requerido.')
+
+    existente = Categoria.objects.filter(nombre__iexact=nombre).first()
+    if existente:
+        if not existente.activo:
+            existente.activo = True
+            existente.save(update_fields=['activo'])
+        return {'id': existente.id, 'nombre': existente.nombre, 'created': False}
+
+    categoria = Categoria.objects.create(nombre=nombre, activo=True)
+    return {'id': categoria.id, 'nombre': categoria.nombre, 'created': True}
+
+
+def _upsert_parroquia(nombre: str) -> dict:
+    nombre = nombre.strip()
+    if not nombre:
+        raise ValueError('El nombre de la parroquia es requerido.')
+
+    existente = Parroquia.objects.filter(nombre__iexact=nombre).first()
+    if existente:
+        if not existente.activo:
+            existente.activo = True
+            existente.save(update_fields=['activo'])
+        return {'id': existente.id, 'nombre': existente.nombre, 'created': False}
+
+    parroquia = Parroquia.objects.create(nombre=nombre, canton='Pelileo', activo=True)
+    return {'id': parroquia.id, 'nombre': parroquia.nombre, 'created': True}
+
+
+@require_http_methods(['POST'])
+@admin_panel_required
+def catalogo_categoria_create(request):
+    try:
+        payload = json.loads(request.body or '{}')
+        result = _upsert_categoria(payload.get('nombre', ''))
+        return JsonResponse(result, status=201 if result['created'] else 200)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('JSON inválido.')
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e))
+
+
+@require_http_methods(['POST'])
+@admin_panel_required
+def catalogo_parroquia_create(request):
+    try:
+        payload = json.loads(request.body or '{}')
+        result = _upsert_parroquia(payload.get('nombre', ''))
+        return JsonResponse(result, status=201 if result['created'] else 200)
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('JSON inválido.')
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e))
+
+
+@require_GET
+def dashboard_summary(request):
+
+    summary = ObtenerDashboardSummaryUseCase(DjangoDashboardRepository()).execute()
+    return JsonResponse(summary)
 
 
 @require_GET

@@ -1,4 +1,7 @@
-function UsuariosPage({ usuarios }) {
+import { usePublicList } from '../hooks/usePublicList';
+
+function UsuariosPage() {
+  const { items: usuarios, loading, error } = usePublicList('/api/usuarios/');
   return (
     <section className="panel-card">
       <div className="panel-header">
