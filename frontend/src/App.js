@@ -14,33 +14,31 @@ import CatalogoEmprendimientos from './pages/publico/CatalogoEmprendimientos';
 import DetalleEmprendimiento from './pages/publico/DetalleEmprendimiento';
 import CatalogoEventos from './pages/publico/CatalogoEventos';
 import MapaGeneral from './pages/publico/MapaGeneral';
+import NotFoundPage from './pages/publico/NotFoundPage';
 import AdminRoutes from './routes/AdminRoutes';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route
-          element={(
-            <ConfiguracionProvider>
-              <PublicLayout />
-            </ConfiguracionProvider>
-          )}
-        >
-          <Route index element={<Home />} />
-          <Route path="atractivos" element={<CatalogoAtractivos />} />
-          <Route path="atractivos/:slug" element={<FichaAtractivo />} />
-          <Route path="rutas" element={<CatalogoRutas />} />
-          <Route path="rutas/:id" element={<DetalleRuta />} />
-          <Route path="emprendimientos" element={<CatalogoEmprendimientos />} />
-          <Route path="emprendimientos/:id" element={<DetalleEmprendimiento />} />
-          <Route path="eventos" element={<CatalogoEventos />} />
-          <Route path="mapa" element={<MapaGeneral />} />
-        </Route>
+      <ConfiguracionProvider>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route index element={<Home />} />
+            <Route path="atractivos" element={<CatalogoAtractivos />} />
+            <Route path="atractivos/:slug" element={<FichaAtractivo />} />
+            <Route path="rutas" element={<CatalogoRutas />} />
+            <Route path="rutas/:id" element={<DetalleRuta />} />
+            <Route path="emprendimientos" element={<CatalogoEmprendimientos />} />
+            <Route path="emprendimientos/:id" element={<DetalleEmprendimiento />} />
+            <Route path="eventos" element={<CatalogoEventos />} />
+            <Route path="mapa" element={<MapaGeneral />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
 
-        <Route path="/admin" element={<Navigate to={ADMIN_PATHS.login} replace />} />
-        <Route path="/admin/*" element={<AdminRoutes />} />
-      </Routes>
+          <Route path="/admin" element={<Navigate to={ADMIN_PATHS.login} replace />} />
+          <Route path="/admin/*" element={<AdminRoutes />} />
+        </Routes>
+      </ConfiguracionProvider>
     </BrowserRouter>
   );
 }

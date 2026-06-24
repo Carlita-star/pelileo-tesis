@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useConfiguracion } from '../../../context/ConfiguracionContext';
+import InstitutionalLogoMark from '../../InstitutionalLogoMark';
 
 function Footer() {
   const config = useConfiguracion();
@@ -9,6 +10,11 @@ function Footer() {
     <footer className="mt-auto bg-slate-800 text-slate-300">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-3">
         <div>
+          <InstitutionalLogoMark
+            imgClassName="footer-logo-img"
+            fallbackClassName="footer-logo-fallback"
+            className="mb-4"
+          />
           <h3 className="text-lg font-bold text-white">{footer.titulo}</h3>
           <p className="mt-2 text-sm text-slate-400">{footer.descripcion}</p>
         </div>

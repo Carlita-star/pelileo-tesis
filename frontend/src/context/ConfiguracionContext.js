@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { obtenerConfiguracion } from '../services/configuracion.service';
+import { applySiteFavicon, obtenerConfiguracion } from '../services/configuracion.service';
 import { CONFIG_DEFAULT } from '../config/configuracionDefault';
 
 // Este "contexto" guarda la configuración del portal y la comparte con TODOS
@@ -25,8 +25,31 @@ export function ConfiguracionProvider({ children }) {
       raiz.style.setProperty('--color-primario', cfg.colores.primario);
       raiz.style.setProperty('--color-primario-oscuro', cfg.colores.primarioOscuro);
       raiz.style.setProperty('--color-secundario', cfg.colores.secundario);
+      if (cfg.colores.terciario) {
+        raiz.style.setProperty('--color-terciario', cfg.colores.terciario);
+      }
+      if (cfg.fuente) {
+        raiz.style.setProperty('--fuente-principal', cfg.fuente);
+        document.body.style.fontFamily = cfg.fuente;
+      }
+      if (cfg.tamanoFuente) {
+        raiz.style.setProperty('--tamano-fuente-base', `${cfg.tamanoFuente}px`);
+        document.body.style.fontSize = `${cfg.tamanoFuente}px`;
+      }
+      if (cfg.bordeRadio != null) {
+        raiz.style.setProperty('--borde-radio', `${cfg.bordeRadio}px`);
+      }
+      if (cfg.modoOscuro) {
+        document.body.classList.add('modo-oscuro');
+      } else {
+        document.body.classList.remove('modo-oscuro');
+      }
     });
   }, []);
+
+  useEffect(() => {
+    applySiteFavicon(config.faviconUrl);
+  }, [config.faviconUrl]);
 
   return (
     <ConfiguracionContext.Provider value={config}>

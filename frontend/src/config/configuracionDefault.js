@@ -7,6 +7,8 @@ export const CONFIG_DEFAULT = {
   nombreSistema: 'Pelileo',
   eslogan: 'Turismo · GAD Municipal',
   logoUrl: null, // si es null, se muestra la inicial del nombre
+  logoSecundarioUrl: null,
+  faviconUrl: null,
 
   colores: {
     primario: '#1D9E75',

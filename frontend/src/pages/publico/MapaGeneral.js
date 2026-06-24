@@ -9,6 +9,7 @@ import { listarRutas } from '../../services/rutas.service';
 import { listarEmprendimientos } from '../../services/emprendimientos.service';
 import { slugify } from '../../services/slug';
 import BotonComoLlegar from '../../components/publico/ComoLlegar';
+import { useConfiguracion } from '../../context/ConfiguracionContext';
 
 const CENTRO_PELILEO = [-1.3306, -78.5414];
 const ZOOM_INICIAL = 13;
@@ -56,7 +57,14 @@ function MiniIcono({ tipo }) {
 }
 
 function MapaGeneral() {
+  const config = useConfiguracion();
   const mapRef = useRef(null);
+  const centro = useMemo(() => {
+    if (config.latitud != null && config.longitud != null) {
+      return [Number(config.latitud), Number(config.longitud)];
+    }
+    return CENTRO_PELILEO;
+  }, [config.latitud, config.longitud]);
   const [marcadores, setMarcadores] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [capas, setCapas] = useState({ atractivo: true, ruta: true, emprendimiento: true });
@@ -145,7 +153,7 @@ function MapaGeneral() {
           Mi ubicación
         </button>
 
-        <MapContainer center={CENTRO_PELILEO} zoom={ZOOM_INICIAL} ref={mapRef} className="h-full w-full">
+        <MapContainer center={centro} zoom={ZOOM_INICIAL} ref={mapRef} className="h-full w-full">
           <TileLayer
             attribution='&copy; colaboradores de OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

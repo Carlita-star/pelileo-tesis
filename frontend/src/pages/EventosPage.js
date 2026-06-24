@@ -1,52 +1,217 @@
-import { usePublicList } from '../hooks/usePublicList';
+import { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { apiRequest } from '../services/apiClient';
+import { ADMIN_PATHS } from '../routes/adminPaths';
+
+const ESTADO_COLOR = {
+  borrador: 'status-draft',
+  publicado: 'status-published',
+  inactivo: 'status-inactive',
+};
+
+function formatFecha(iso) {
+  if (!iso) return '---';
+  return new Date(iso).toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 function EventosPage() {
-  const { items: eventos, loading, error } = usePublicList('/api/eventos/');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [items, setItems] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [estados, setEstados] = useState([]);
+  const [search, setSearch] = useState('');
+  const [categoriaId, setCategoriaId] = useState('');
+  const [estado, setEstado] = useState('todos');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError('');
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (categoriaId) params.set('categoria_id', categoriaId);
+    if (estado) params.set('estado', estado);
+    params.set('page', String(page));
+    params.set('page_size', '10');
+
+    try {
+      const data = await apiRequest(`/api/admin/eventos/?${params.toString()}`);
+      setItems(data.results || []);
+      setCategorias(data.categorias || []);
+      setEstados(data.estados || []);
+      setTotal(data.total ?? 0);
+      setTotalPages(data.total_pages ?? 1);
+    } catch (err) {
+      const msg = err.message || '';
+      if (/fetch|network|failed/i.test(msg)) {
+        setError('No se pudo conectar con el backend. Verifique que esté corriendo: python manage.py runserver');
+      } else if (/sesión|autenticado|permisos/i.test(msg)) {
+        setError(`${msg} Cierre sesión e ingrese de nuevo.`);
+      } else {
+        setError(msg || 'No se pudieron cargar los eventos.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [search, categoriaId, estado, page]);
+
+  useEffect(() => {
+    if (location.state?.saved) {
+      setSuccess(`Evento "${location.state.nombre || ''}" guardado correctamente.`);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('¿Eliminar este evento?')) return;
+    try {
+      await apiRequest(`/api/admin/eventos/${id}/`, { method: 'DELETE' });
+      fetchData();
+    } catch (err) {
+      setError(err.message || 'Error al eliminar el evento.');
+    }
+  };
+
+  const handleToggleEstado = async (item) => {
+    const objetivo = item.estado_publicacion_codigo === 'publicado' ? 'inactivo' : 'publicado';
+    try {
+      await apiRequest(`/api/admin/eventos/${item.id}/cambiar-estado/`, {
+        method: 'POST',
+        body: JSON.stringify({ estado_codigo: objetivo }),
+      });
+      fetchData();
+    } catch (err) {
+      setError(err.message || 'Error al cambiar el estado.');
+    }
+  };
+
+  const hayFiltros = Boolean(search || categoriaId || (estado && estado !== 'todos'));
+  const mensajeVacio = hayFiltros
+    ? 'No hay eventos que coincidan con los filtros.'
+    : 'No hay eventos registrados.';
+
   return (
     <section className="panel-card">
       <div className="panel-header">
         <div>
-          <h2>Eventos</h2>
+          <h2>Gestión de eventos</h2>
           <p className="section-description">
-            Gestiona los eventos turísticos y culturales que ocurren en Pelileo.
+            Listado y administración de eventos culturales y turísticos del cantón.
           </p>
         </div>
+        <button type="button" className="primary-button" onClick={() => navigate(ADMIN_PATHS.eventosNuevo)}>
+          Nuevo evento
+        </button>
       </div>
-      {loading ? (
-        <p className="empty-state">Cargando eventos...</p>
-      ) : error ? (
-        <p className="status-error">{error}</p>
-      ) : eventos.length === 0 ? (
-        <p className="empty-state">No hay eventos cargados en el sistema.</p>
-      ) : (
-        <div className="table-responsive">
-          <table className="entity-table">
-            <thead>
+
+      {success && (
+        <div className="error-message" style={{ background: '#e8f7ee', color: '#1f6b3f', borderColor: '#b8e6c8', marginBottom: 16 }}>
+          {success}
+        </div>
+      )}
+
+      <div className="filter-bar">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          placeholder="Buscar por nombre"
+        />
+        <select value={categoriaId} onChange={(e) => { setCategoriaId(e.target.value); setPage(1); }}>
+          <option value="">Todas las categorías</option>
+          {categorias.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+        </select>
+        <select value={estado} onChange={(e) => { setEstado(e.target.value); setPage(1); }}>
+          <option value="todos">Todos los estados</option>
+          {estados.map((e) => <option key={e.codigo} value={e.codigo}>{e.nombre}</option>)}
+        </select>
+      </div>
+
+      <div className="table-responsive">
+        <table className="entity-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Fecha inicio</th>
+              <th>Fecha fin</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Categoría</th>
-                <th>Fecha Inicio</th>
-                <th>Organizador</th>
-                <th>Costo</th>
-                <th>Estado</th>
+                <td colSpan="6">
+                  <div className="table-spinner">
+                    <span className="loader" />
+                    Cargando eventos…
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {eventos && eventos.map((item) => (
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan="6">
+                  <p className="empty-state">{error ? '—' : mensajeVacio}</p>
+                </td>
+              </tr>
+            ) : (
+              items.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.id}</td>
                   <td>{item.nombre}</td>
                   <td>{item.categoria || '---'}</td>
-                  <td>{item.fecha_inicio ? new Date(item.fecha_inicio).toLocaleDateString('es-ES') : '---'}</td>
-                  <td>{item.organizador || '---'}</td>
-                  <td>${item.costo ?? '---'}</td>
-                  <td>{item.estado_publicacion || 'No definido'}</td>
+                  <td>{formatFecha(item.fecha_inicio)}</td>
+                  <td>{formatFecha(item.fecha_fin)}</td>
+                  <td>
+                    <span className={`status-badge ${ESTADO_COLOR[item.estado_publicacion_codigo] || 'status-neutral'}`}>
+                      {item.estado_publicacion || '---'}
+                    </span>
+                  </td>
+                  <td className="actions-cell">
+                    <button type="button" title="Editar" onClick={() => navigate(ADMIN_PATHS.eventoEditar(item.id))}>✏️</button>
+                    <button type="button" title="Publicar / despublicar" onClick={() => handleToggleEstado(item)}>👁️</button>
+                    <button type="button" title="Eliminar" onClick={() => handleDelete(item.id)}>🗑️</button>
+                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="table-footer">
+        <p className="section-note">Mostrando {items.length} de {total} registros.</p>
+        <div className="pagination-controls">
+          <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
+          <span>Página {page} de {totalPages}</span>
+          <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
         </div>
+      </div>
+
+      {error && (
+        <p className="status-error">
+          {error}
+          {' '}
+          <button type="button" className="primary-button" style={{ marginLeft: 8, padding: '6px 12px' }} onClick={fetchData}>
+            Reintentar
+          </button>
+        </p>
       )}
     </section>
   );

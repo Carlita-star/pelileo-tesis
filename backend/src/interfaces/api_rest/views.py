@@ -1,6 +1,11 @@
 import json
 
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseForbidden, HttpResponseNotFound
+from datetime import datetime
+from src.application.use_cases.auditorias.listar_auditorias import ListarAuditorias
+from src.infrastructure.repositories.django_auditoria_repository import DjangoAuditoriaRepository
+
+
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseForbidden, HttpResponseNotFound
 from django.views.decorators.http import require_GET, require_http_methods
 
 from src.domain.atractivos.models import Atractivo
@@ -24,7 +29,7 @@ from src.application.use_cases.atractivos.guardar_atractivo import GuardarAtract
 from src.application.dto.atractivo_dto import AtractivoCompleteDTO, AtractivoGeneralDTO, AtractivoUbicacionDTO, AtractivoDetalleDTO, AtractivoAccesibilidadDTO, AtractivoEstadoConservacionDTO, AtractivoAdministracionDTO
 from src.infrastructure.repositories.django_dashboard_repository import DjangoDashboardRepository
 from src.infrastructure.repositories.django_atractivo_repository import DjangoAtractivoAdminRepository
-from src.interfaces.api_rest.auth_utils import admin_panel_required
+from src.interfaces.api_rest.auth_utils import admin_panel_required, administrador_required
 
 def _imagen_principal(tipo, entidad_id):
     m = (Multimedia.objects
@@ -48,6 +53,7 @@ def api_root(request):
                 "reportes": "/api/reportes/",
                 "auditorias": "/api/auditorias/",
                 "admin_atractivos": "/api/admin/atractivos/",
+                "admin_eventos": "/api/admin/eventos/",
                 "dashboard": "/api/dashboard/",
                 "configuracion": "/api/configuracion/",
             },
@@ -164,7 +170,10 @@ def usuarios_list(request):
 
 @require_GET
 def eventos_list(request):
-    eventos = Evento.objects.filter(activo=True).select_related('categoria', 'estado_publicacion').order_by('fecha_inicio')[:20]
+    eventos = Evento.objects.filter(
+        activo=True,
+        estado_publicacion__codigo='publicado',
+    ).select_related('categoria', 'estado_publicacion').order_by('fecha_inicio')[:20]
 
     data = [
         {
@@ -229,26 +238,104 @@ def reportes_list(request):
 
     return JsonResponse({'results': data})
 
+def _parse_fecha_auditoria(valor):
+    if not valor:
+        return None
+    return datetime.strptime(valor, '%Y-%m-%d').date()
+
+
+def _serializar_auditoria(a):
+    return {
+        'id': a.id,
+        'usuario': a.nombre_usuario,
+        'usuario_id': a.usuario_id,
+        'tabla_afectada': a.tabla_afectada,
+        'entidad_id': a.entidad_id,
+        'accion': a.accion,
+        'datos_anteriores': a.datos_anteriores,
+        'datos_nuevos': a.datos_nuevos,
+        'ip_address': a.ip_address,
+        'fecha': a.fecha.isoformat() if a.fecha else None,
+    }
+
+
+def _auditorias_a_csv(registros):
+    import csv
+    from io import StringIO
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(['Fecha', 'Usuario', 'Acción', 'Módulo', 'ID registro', 'IP'])
+    for a in registros:
+        writer.writerow([
+            a.fecha.isoformat() if a.fecha else '',
+            a.nombre_usuario or 'Sistema',
+            a.accion or '',
+            a.tabla_afectada or '',
+            a.entidad_id if a.entidad_id is not None else '',
+            a.ip_address or '',
+        ])
+    return buffer.getvalue()
+
 
 @require_GET
+@administrador_required
 def auditorias_list(request):
-    auditorias = Auditoria.objects.select_related('usuario').order_by('-fecha')[:50]
+    # 1) Leer filtros del query string (A-14 los exige).
+    tabla = request.GET.get('tabla') or None
+    accion = request.GET.get('accion') or None
+    usuario_id = request.GET.get('usuario_id')
+    page = request.GET.get('page', '1')
+    page_size = request.GET.get('page_size', '20')
+    export_csv = request.GET.get('format') == 'csv'
 
-    data = [
-        {
-            'id': a.id,
-            'usuario': a.nombre_usuario or (a.usuario.nombre_completo if a.usuario_id else None),
-            'tabla_afectada': a.tabla_afectada,
-            'entidad_id': a.entidad_id,
-            'accion': a.accion,
-            'ip_address': a.ip_address,
-            'fecha': a.fecha.isoformat() if a.fecha else None,
-        }
-        for a in auditorias
-    ]
+    try:
+        usuario_id = int(usuario_id) if usuario_id else None
+        page = int(page)
+        page_size = min(100, max(1, int(page_size)))
+        desde = _parse_fecha_auditoria(request.GET.get('desde'))
+        hasta = _parse_fecha_auditoria(request.GET.get('hasta'))
+    except ValueError:
+        return HttpResponseBadRequest('Parámetros de filtro o fecha inválidos (fecha: AAAA-MM-DD).')
 
-    return JsonResponse({'results': data})
+    # 2) Delegar al caso de uso (tu mismo patrón que en atractivos admin).
+    try:
+        registros = ListarAuditorias(DjangoAuditoriaRepository()).execute(
+            tabla=tabla, usuario_id=usuario_id, accion=accion, desde=desde, hasta=hasta,
+        )
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e))
 
+    if export_csv:
+        csv_content = _auditorias_a_csv(registros)
+        response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="auditoria.csv"'
+        return response
+    total = len(registros)
+    inicio = (page - 1) * page_size
+    pagina = registros[inicio:inicio + page_size]
+
+    # 4) Serialización manual (tu estilo). Incluye los campos del modal A-14.
+    data = [_serializar_auditoria(a) for a in pagina]
+
+    return JsonResponse({
+        'count': total,
+        'page': page,
+        'page_size': page_size,
+        'total_pages': max(1, (total + page_size - 1) // page_size),
+        'modulos': _listar_modulos_auditoria(),
+        'results': data,
+    })
+
+
+def _listar_modulos_auditoria():
+    return list(
+        Auditoria.objects.exclude(tabla_afectada__isnull=True)
+        .exclude(tabla_afectada='')
+        .values_list('tabla_afectada', flat=True)
+        .distinct()
+        .order_by('tabla_afectada')
+    )
 
 @require_GET
 @admin_panel_required
@@ -492,66 +579,10 @@ def dashboard_summary(request):
 
 @require_GET
 def configuracion_list(request):
-    empresa = Empresa.objects.first()
-
-    if not empresa:
-        return JsonResponse({'error': 'No hay configuración de empresa disponible.'}, status=404)
-
-    configuraciones = Configuracion.objects.filter(empresa=empresa)
-    headers = list(empresa.headers.values('mostrar_logo', 'mostrar_menu', 'mostrar_buscador', 'mostrar_redes', 'texto_superior', 'color_fondo', 'color_texto', 'altura_header', 'sticky'))
-    footers = list(empresa.footers.values('descripcion', 'mostrar_redes', 'mostrar_contacto', 'mostrar_mapa', 'copyright_texto', 'color_fondo', 'color_texto'))
-
-    data = {
-        'empresa': {
-            'id': empresa.id,
-            'nombre': empresa.nombre,
-            'nombre_comercial': empresa.nombre_comercial,
-            'ruc': empresa.ruc,
-            'telefono': empresa.telefono,
-            'celular': empresa.celular,
-            'email': empresa.email,
-            'sitio_web': empresa.sitio_web,
-            'direccion': empresa.direccion,
-            'provincia': empresa.provincia,
-            'canton': empresa.canton,
-            'parroquia': empresa.parroquia,
-            'descripcion': empresa.descripcion,
-            'mision': empresa.mision,
-            'vision': empresa.vision,
-            'logo_principal': empresa.logo_principal,
-            'logo_secundario': empresa.logo_secundario,
-            'favicon': empresa.favicon,
-            'estado': empresa.estado,
-        },
-        'apariencia': None,
-        'configuraciones': [
-            {
-                'clave': c.clave,
-                'valor': c.valor,
-                'descripcion': c.descripcion,
-                'tipo': c.tipo,
-                'editable': c.editable,
-            }
-            for c in configuraciones
-        ],
-        'headers': headers,
-        'footers': footers,
-    }
-
-    if hasattr(empresa, 'apariencia') and empresa.apariencia is not None:
-        apariencia = empresa.apariencia
-        data['apariencia'] = {
-            'color_primario': apariencia.color_primario,
-            'color_secundario': apariencia.color_secundario,
-            'color_terciario': apariencia.color_terciario,
-            'fuente_principal': apariencia.fuente_principal,
-            'fuente_secundaria': apariencia.fuente_secundaria,
-            'tamano_fuente_base': apariencia.tamano_fuente_base,
-            'modo_oscuro': apariencia.modo_oscuro,
-            'borde_radio': apariencia.borde_radio,
-            'sombra_global': apariencia.sombra_global,
-        }
-
+    from src.infrastructure.repositories.django_configuracion_admin_repository import (
+        DjangoConfiguracionAdminRepository,
+    )
+    data = DjangoConfiguracionAdminRepository().obtener_para_portal()
     return JsonResponse(data)
 
 @require_GET

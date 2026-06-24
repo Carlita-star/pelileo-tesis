@@ -20,6 +20,12 @@ export function saveSession({ usuario, token }) {
   localStorage.setItem('token', token);
 }
 
+export function updateStoredUser(partial) {
+  const current = getStoredUser();
+  if (!current) return;
+  localStorage.setItem('usuario', JSON.stringify({ ...current, ...partial }));
+}
+
 export function clearSession() {
   localStorage.removeItem('usuario');
   localStorage.removeItem('autenticado');
@@ -35,4 +41,9 @@ export function normalizeRole(role) {
 export function hasPanelAccess(user = getStoredUser()) {
   const roles = user?.roles || [];
   return roles.some((role) => ADMIN_PANEL_ROLES.has(normalizeRole(role)));
+}
+
+export function isAdministrador(user = getStoredUser()) {
+  const roles = user?.roles || [];
+  return roles.some((role) => normalizeRole(role) === 'administrador');
 }

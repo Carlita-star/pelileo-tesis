@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { saveSession, isAuthenticated, clearSession, hasPanelAccess } from '../services/authStorage';
 import { ADMIN_PATHS } from '../routes/adminPaths';
+import { useConfiguracion } from '../context/ConfiguracionContext';
+import InstitutionalLogoMark from '../components/InstitutionalLogoMark';
 
 function LoginPage({ initialView = 'login' }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const config = useConfiguracion();
   const token = useMemo(() => new URLSearchParams(window.location.search).get('token'), []);
   const [view, setView] = useState(() => {
     if (token) return 'reset';
@@ -202,10 +205,14 @@ function LoginPage({ initialView = 'login' }) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-top">
-          <div className="login-logo">GAD</div>
+          <InstitutionalLogoMark
+            imgClassName="login-logo login-logo-img"
+            fallbackClassName="login-logo"
+            fallbackText="GAD"
+          />
           <div className="login-branding">
-            <p className="login-brand-name">Pelileo</p>
-            <p className="login-brand-subtitle">Panel administrativo turístico</p>
+            <p className="login-brand-name">{config.nombreSistema || 'Pelileo'}</p>
+            <p className="login-brand-subtitle">{config.eslogan || 'Panel administrativo turístico'}</p>
           </div>
         </div>
 

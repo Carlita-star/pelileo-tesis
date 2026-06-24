@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { clearSession, getStoredUser } from '../services/authStorage';
 import { ADMIN_PATHS } from '../routes/adminPaths';
@@ -21,12 +21,12 @@ function AdminLayout() {
             <input type="search" placeholder="Buscar..." />
           </div>
           <div className="profile-chip">
-            <span>
+            <Link to={ADMIN_PATHS.perfil} className="profile-chip-link">
               {usuario?.nombre_completo
                 || `${usuario?.nombres || ''} ${usuario?.apellidos || ''}`.trim()
                 || usuario?.username
                 || 'Usuario'}
-            </span>
+            </Link>
             <button type="button" className="logout-button" onClick={handleLogout}>
               Cerrar sesión
             </button>
