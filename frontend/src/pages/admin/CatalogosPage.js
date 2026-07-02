@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../../services/apiClient';
+import { useToast } from '../../context/ToastContext';
+import { useErrorToast } from '../../hooks/useErrorToast';
+import { useListSearch } from '../../hooks/useListSearch';
 
 const TABS = [
   { key: 'categorias', label: 'Categorías', singular: 'categoría', showIcono: false, showDescripcion: true },
@@ -17,12 +20,12 @@ const EMPTY_FORM = {
 };
 
 function CatalogosPage() {
+  const toast = useToast();
   const [tabActiva, setTabActiva] = useState('categorias');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useListSearch();
   const [estado, setEstado] = useState('todos');
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -59,11 +62,12 @@ function CatalogosPage() {
     cargar();
   }, [cargar]);
 
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: cargar } });
+
   const cambiarTab = (key) => {
     setTabActiva(key);
     setSearch('');
     setEstado('todos');
-    setSuccess('');
     setError('');
   };
 
@@ -96,7 +100,9 @@ function CatalogosPage() {
     setFormError('');
     const nombre = form.nombre.trim();
     if (!nombre) {
-      setFormError('El nombre es obligatorio.');
+      const message = 'El nombre es obligatorio.';
+      setFormError(message);
+      toast.error(message);
       return;
     }
 
@@ -118,18 +124,20 @@ function CatalogosPage() {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
-        setSuccess(`${tabConfig.label.slice(0, -1) || tabConfig.label} actualizado correctamente.`);
+        toast.success(`${tabConfig.label.slice(0, -1) || tabConfig.label} actualizado correctamente.`);
       } else {
         await apiRequest(`/api/admin/catalogos/${tabActiva}/new/`, {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        setSuccess(`${tabConfig.label.slice(0, -1) || tabConfig.label} creado correctamente.`);
+        toast.success(`${tabConfig.label.slice(0, -1) || tabConfig.label} creado correctamente.`);
       }
       setModalOpen(false);
       cargar();
     } catch (err) {
-      setFormError(err.message || 'Error al guardar.');
+      const message = err.message || 'Error al guardar.';
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -145,7 +153,7 @@ function CatalogosPage() {
         method: 'POST',
         body: JSON.stringify({ activo: nuevoEstado }),
       });
-      setSuccess(`Registro ${nuevoEstado ? 'activado' : 'desactivado'} correctamente.`);
+      toast.success(`Registro ${nuevoEstado ? 'activado' : 'desactivado'} correctamente.`);
       cargar();
     } catch (err) {
       setError(err.message || 'Error al cambiar el estado.');
@@ -166,10 +174,6 @@ function CatalogosPage() {
           </p>
         </div>
       </div>
-
-      {success && (
-        <div className="success-message">{success}</div>
-      )}
 
       <div className="catalog-tabs">
         <div className="catalog-tabs-header">
@@ -263,16 +267,6 @@ function CatalogosPage() {
           <p className="section-note">Total: {items.length} registros.</p>
         </div>
       </div>
-
-      {error && (
-        <p className="status-error">
-          {error}
-          {' '}
-          <button type="button" className="primary-button" style={{ marginLeft: 8, padding: '6px 12px' }} onClick={cargar}>
-            Reintentar
-          </button>
-        </p>
-      )}
 
       {modalOpen && (
         <div className="modal-overlay" onClick={cerrarModal}>

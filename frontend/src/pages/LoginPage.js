@@ -4,11 +4,17 @@ import { saveSession, isAuthenticated, clearSession, hasPanelAccess } from '../s
 import { ADMIN_PATHS } from '../routes/adminPaths';
 import { useConfiguracion } from '../context/ConfiguracionContext';
 import InstitutionalLogoMark from '../components/InstitutionalLogoMark';
+import { validateRegisterForm } from '../utils/adminFormSchemas';
+import FormValidationBanner, { FieldError, fieldClass } from '../components/FormValidationBanner';
+import { filterDigitsOnly } from '../utils/formValidation';
+import { useToast } from '../context/ToastContext';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 function LoginPage({ initialView = 'login' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const config = useConfiguracion();
+  const toast = useToast();
   const token = useMemo(() => new URLSearchParams(window.location.search).get('token'), []);
   const [view, setView] = useState(() => {
     if (token) return 'reset';
@@ -36,6 +42,7 @@ function LoginPage({ initialView = 'login' }) {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -43,8 +50,24 @@ function LoginPage({ initialView = 'login' }) {
     if (location.state?.reason === 'no-role') {
       clearSession();
       setError('Tu cuenta no tiene permisos para el panel. Inicia sesión de nuevo.');
+      return;
     }
-  }, [location.state]);
+
+    const sesion = new URLSearchParams(location.search).get('sesion');
+    if (sesion === 'expirada') {
+      clearSession();
+      setError('Tu sesión expiró. Inicia sesión de nuevo.');
+    } else if (sesion === 'sin-permisos') {
+      clearSession();
+      setError('Tu sesión no es válida o no tienes permisos. Inicia sesión de nuevo.');
+    }
+  }, [location.state, location.search]);
+
+  useErrorToast(error);
+
+  useEffect(() => {
+    if (success) toast.success(success);
+  }, [success, toast]);
 
   const API_BASE = process.env.REACT_APP_API_URL ?? 'http://localhost:8000';
 
@@ -115,10 +138,20 @@ function LoginPage({ initialView = 'login' }) {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (registerPassword !== registerConfirmPassword) {
-      setError('Las contraseñas no coinciden.');
+    const validation = validateRegisterForm({
+      nombres,
+      apellidos,
+      registerUsername,
+      registerEmail,
+      registerPassword,
+      registerConfirmPassword,
+    });
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setError(validation.message);
       return;
     }
+    setFieldErrors({});
 
     setLoading(true);
     try {
@@ -221,9 +254,6 @@ function LoginPage({ initialView = 'login' }) {
             <h1>Iniciar sesión</h1>
             <p className="login-description">Ingresa tus credenciales para acceder al panel administrativo.</p>
 
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
-
             <form className="login-form" onSubmit={handleLogin}>
               <label className="login-field">
                 <span className="login-field-label">Nombre de usuario</span>
@@ -279,9 +309,6 @@ function LoginPage({ initialView = 'login' }) {
             <h1>Crear cuenta</h1>
             <p className="login-description">Regístrate para acceder al panel administrativo.</p>
 
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
-
             <form className="login-form" onSubmit={handleRegister}>
               <label className="login-field">
                 <span className="login-field-label">Nombres</span>
@@ -290,12 +317,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="text"
                     value={nombres}
+                    className={fieldClass(fieldErrors.nombres)}
                     onChange={(e) => setNombres(e.target.value)}
                     placeholder="Nombres"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.nombres} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Apellidos</span>
@@ -304,12 +332,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="text"
                     value={apellidos}
+                    className={fieldClass(fieldErrors.apellidos)}
                     onChange={(e) => setApellidos(e.target.value)}
                     placeholder="Apellidos"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.apellidos} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Nombre de usuario</span>
@@ -318,12 +347,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="text"
                     value={registerUsername}
+                    className={fieldClass(fieldErrors.registerUsername)}
                     onChange={(e) => setRegisterUsername(e.target.value)}
                     placeholder="Nombre de usuario"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerUsername} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Correo electrónico</span>
@@ -332,12 +362,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="email"
                     value={registerEmail}
+                    className={fieldClass(fieldErrors.registerEmail)}
                     onChange={(e) => setRegisterEmail(e.target.value)}
                     placeholder="Correo electrónico"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerEmail} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Contraseña</span>
@@ -346,12 +377,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={registerPassword}
+                    className={fieldClass(fieldErrors.registerPassword)}
                     onChange={(e) => setRegisterPassword(e.target.value)}
                     placeholder="Contraseña"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerPassword} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Confirmar contraseña</span>
@@ -360,12 +392,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={registerConfirmPassword}
+                    className={fieldClass(fieldErrors.registerConfirmPassword)}
                     onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                     placeholder="Confirmar contraseña"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerConfirmPassword} />
               </label>
 
               <button type="submit" className="login-button" disabled={loading}>
@@ -385,9 +418,6 @@ function LoginPage({ initialView = 'login' }) {
           <>
             <h1>Recuperar contraseña</h1>
             <p className="login-description">Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.</p>
-
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
 
             <form className="login-form" onSubmit={handleRequestReset}>
               <label className="login-field">
@@ -422,9 +452,6 @@ function LoginPage({ initialView = 'login' }) {
           <>
             <h1>Nueva contraseña</h1>
             <p className="login-description">Ingresa y confirma tu nueva contraseña.</p>
-
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
 
             <form className="login-form" onSubmit={handleResetPassword}>
               <label className="login-field">

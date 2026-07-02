@@ -18,6 +18,7 @@ from .views import (
     emprendimientos_detail,
     usuarios_list,
     eventos_list,
+    admin_evento_detail,
     publicaciones_list,
     reportes_list,
     auditorias_list,
@@ -92,7 +93,17 @@ from .admin.perfil_views import (
     admin_perfil_actualizar,
     admin_perfil_cambiar_password,
     admin_perfil_foto,
-)  # A-15 reportes admin
+)
+from .admin.ficha_views import (
+    admin_atractivo_ficha_descargar,
+    admin_ruta_ficha_descargar,
+    admin_emprendimiento_ficha_descargar,
+)
+from .admin.errores_views import (
+    admin_errores_list,
+    admin_errores_cambiar_estado,
+    admin_errores_reportar_cliente,
+)
 
 urlpatterns = [
     path('api/', api_root, name='api-root'),
@@ -103,6 +114,7 @@ urlpatterns = [
     path('api/admin/atractivos/new/', admin_atractivo_save, name='api-admin-atractivo-create'),
     path('api/admin/atractivos/<int:atractivo_id>/', admin_atractivo_delete, name='api-admin-atractivo-delete'),
     path('api/admin/atractivos/<int:atractivo_id>/form-data/', admin_atractivo_get_for_edit, name='api-admin-atractivo-form-data-edit'),
+    path('api/admin/atractivos/<int:atractivo_id>/ficha/descargar/', admin_atractivo_ficha_descargar, name='api-admin-atractivo-ficha'),
     path('api/admin/atractivos/<int:atractivo_id>/edit/', admin_atractivo_save, name='api-admin-atractivo-edit'),
     path('api/admin/atractivos/<int:atractivo_id>/cambiar-estado/', admin_atractivo_cambiar_estado, name='api-admin-atractivo-cambiar-estado'),
     path('api/catalogos/categorias/', catalogo_categoria_create, name='api-catalogo-categoria-create'),
@@ -112,6 +124,7 @@ urlpatterns = [
     path('api/admin/rutas/new/', admin_ruta_save, name='api-admin-ruta-create'),
     path('api/admin/rutas/<int:ruta_id>/', admin_ruta_delete, name='api-admin-ruta-delete'),
     path('api/admin/rutas/<int:ruta_id>/form-data/', admin_ruta_get_for_edit, name='api-admin-ruta-form-data-edit'),
+    path('api/admin/rutas/<int:ruta_id>/ficha/descargar/', admin_ruta_ficha_descargar, name='api-admin-ruta-ficha'),
     path('api/admin/rutas/<int:ruta_id>/edit/', admin_ruta_save, name='api-admin-ruta-edit'),
     path('api/admin/rutas/<int:ruta_id>/cambiar-estado/', admin_ruta_cambiar_estado, name='api-admin-ruta-cambiar-estado'),
     path('api/admin/emprendimientos/', admin_emprendimientos_list, name='api-admin-emprendimientos'),
@@ -119,6 +132,7 @@ urlpatterns = [
     path('api/admin/emprendimientos/new/', admin_emprendimiento_save, name='api-admin-emprendimiento-create'),
     path('api/admin/emprendimientos/<int:emprendimiento_id>/', admin_emprendimiento_delete, name='api-admin-emprendimiento-delete'),
     path('api/admin/emprendimientos/<int:emprendimiento_id>/form-data/', admin_emprendimiento_get_for_edit, name='api-admin-emprendimiento-form-data-edit'),
+    path('api/admin/emprendimientos/<int:emprendimiento_id>/ficha/descargar/', admin_emprendimiento_ficha_descargar, name='api-admin-emprendimiento-ficha'),
     path('api/admin/emprendimientos/<int:emprendimiento_id>/edit/', admin_emprendimiento_save, name='api-admin-emprendimiento-edit'),
     path('api/admin/emprendimientos/<int:emprendimiento_id>/cambiar-estado/', admin_emprendimiento_cambiar_estado, name='api-admin-emprendimiento-cambiar-estado'),
     path('api/admin/eventos/', admin_eventos_list, name='api-admin-eventos'),
@@ -168,11 +182,15 @@ urlpatterns = [
     path('api/emprendimientos/<int:emp_id>/', emprendimientos_detail, name='api-emprendimientos-detail'),
     path('api/usuarios/', usuarios_list, name='api-usuarios'),
     path('api/eventos/', eventos_list, name='api-eventos'),
+    path('api/admin/eventos/<int:evento_id>/detalle/', admin_evento_detail, name='api-admin-evento-detail'),
     path('api/publicaciones/', publicaciones_list, name='api-publicaciones'),
     path('api/reportes/', reportes_list, name='api-reportes'),
     path('api/auditorias/', auditorias_list, name='api-auditorias'),
     path('api/dashboard/', dashboard_summary, name='api-dashboard-summary'),
     path('api/configuracion/', configuracion_list, name='api-configuracion'),
+    path('api/admin/errores/', admin_errores_list, name='api-admin-errores-list'),
+    path('api/admin/errores/reportar/', admin_errores_reportar_cliente, name='api-admin-errores-reportar'),
+    path('api/admin/errores/<int:error_id>/estado/', admin_errores_cambiar_estado, name='api-admin-errores-estado'),
     path('api/auth/register/', register, name='api-auth-register'),
     path('api/auth/login/', login, name='api-auth-login'),
     path('api/auth/password-reset/', password_reset_request, name='api-auth-password-reset'),

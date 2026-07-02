@@ -4,14 +4,22 @@ import CreatableCombobox from '../../components/CreatableCombobox';
 import GalleryUploader from '../../components/GalleryUploader';
 import { apiRequest } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
+import { useToast } from '../../context/ToastContext';
+import { validateRutaForm } from '../../utils/adminFormSchemas';
+import FormValidationBanner, { FieldError, fieldClass } from '../../components/FormValidationBanner';
+import { filterDecimalInput } from '../../utils/formValidation';
 import '../../styles/AtractivoForm.css';
 
 function RutaFormPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { id } = useParams();
   const rutaId = id ? Number(id) : null;
+  const [entityId, setEntityId] = useState(rutaId);
   const [loading, setLoading] = useState(Boolean(rutaId));
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [galleryCount, setGalleryCount] = useState(0);
   const [catalogs, setCatalogs] = useState({ parroquias: [], estados: [], atractivos: [] });
   const [formData, setFormData] = useState({
     general: {
@@ -30,6 +38,7 @@ function RutaFormPage() {
   });
 
   useEffect(() => {
+    setEntityId(rutaId);
     loadData();
   }, [rutaId]);
 
@@ -45,6 +54,69 @@ function RutaFormPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const prepareFormData = async () => {
+    let general = { ...formData.general };
+
+    if (!general.parroquia_id && general.parroquia_nombre?.trim()) {
+      const created = await createParroquia(general.parroquia_nombre.trim());
+      general = { ...general, parroquia_id: created.id, parroquia_nombre: created.nombre };
+    }
+
+    return { ...formData, general };
+  };
+
+  const saveRuta = async (preparedData, { publish = false, updateUrl = true } = {}) => {
+    const currentId = entityId;
+    const payload = {
+      ...preparedData,
+      estado_publicacion_codigo: publish ? 'publicado' : (preparedData.estado_publicacion_codigo || 'borrador'),
+    };
+
+    const url = currentId
+      ? `/api/admin/rutas/${currentId}/edit/`
+      : '/api/admin/rutas/new/';
+
+    const result = await apiRequest(url, {
+      method: currentId ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    if (result?.id && !currentId && updateUrl) {
+      setEntityId(result.id);
+      navigate(ADMIN_PATHS.rutaEditar(result.id), { replace: true });
+    }
+
+    return result;
+  };
+
+  const ensureEntityForGallery = async () => {
+    if (entityId) return entityId;
+
+    const prepared = await prepareFormData();
+    const validation = validateRutaForm(prepared, {
+      publish: false,
+      imageCount: galleryCount,
+      entityId: null,
+    });
+
+    if (!validation.valid) {
+      setFormData(prepared);
+      setErrors(validation.errors);
+      setError(validation.banner || 'Complete nombre, parroquia y descripción para subir imágenes.');
+      throw new Error('validation');
+    }
+
+    setErrors({});
+    setFormData(prepared);
+    const result = await saveRuta(prepared, { publish: false });
+    const newId = result?.id || entityId;
+    if (!newId) {
+      throw new Error('No se pudo crear el registro para la galería.');
+    }
+    setEntityId(newId);
+    return newId;
   };
 
   const createParroquia = async (nombre) => {
@@ -79,23 +151,46 @@ function RutaFormPage() {
 
   const handleSave = async (publish) => {
     setError('');
+
+    let prepared;
     try {
-      const payload = {
-        ...formData,
-        estado_publicacion_codigo: publish ? 'publicado' : formData.estado_publicacion_codigo,
-      };
-      const url = rutaId ? `/api/admin/rutas/${rutaId}/edit/` : '/api/admin/rutas/new/';
-      const result = await apiRequest(url, {
-        method: rutaId ? 'PUT' : 'POST',
-        body: JSON.stringify(payload),
-      });
-      if (!rutaId && result?.id) {
-        navigate(ADMIN_PATHS.rutaEditar(result.id));
+      prepared = await prepareFormData();
+    } catch (err) {
+      setError(err.message || 'Error al preparar el formulario.');
+      return;
+    }
+
+    const validation = validateRutaForm(prepared, {
+      publish,
+      imageCount: galleryCount,
+      entityId,
+    });
+    if (!validation.valid) {
+      setFormData(prepared);
+      setErrors(validation.errors);
+      setError(validation.banner || validation.message);
+      return;
+    }
+    setErrors({});
+    setFormData(prepared);
+
+    try {
+      const wasNew = !entityId;
+      await saveRuta(prepared, { publish, updateUrl: wasNew });
+      if (publish) {
+        toast.success('Ruta publicada correctamente.');
+        navigate(ADMIN_PATHS.rutas);
         return;
       }
+      if (wasNew) {
+        toast.success('Ruta guardada. Ya puede subir imágenes en la galería.');
+        return;
+      }
+      toast.success('Ruta guardada correctamente.');
       navigate(ADMIN_PATHS.rutas);
     } catch (err) {
-      setError(err.message);
+      if (err.fieldErrors) setErrors(err.fieldErrors);
+      setError(err.message || 'Error al guardar la ruta.');
     }
   };
 
@@ -106,7 +201,7 @@ function RutaFormPage() {
   return (
     <div className="atractivo-form-page">
       <div className="form-header">
-        <h1>{rutaId ? `Editar: ${formData.general.nombre}` : 'Nueva ruta'}</h1>
+        <h1>{entityId ? `Editar: ${formData.general.nombre}` : 'Nueva ruta'}</h1>
         <select
           value={formData.estado_publicacion_codigo}
           onChange={(e) => setFormData((prev) => ({ ...prev, estado_publicacion_codigo: e.target.value }))}
@@ -117,7 +212,7 @@ function RutaFormPage() {
         </select>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <FormValidationBanner message={error} errors={errors} />}
 
       <div className="tabs-content" style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
         <h2>Datos de la ruta</h2>
@@ -126,15 +221,18 @@ function RutaFormPage() {
             <label>Nombre *</label>
             <input
               value={formData.general.nombre}
+              className={fieldClass(errors['general.nombre'])}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
                 general: { ...prev.general, nombre: e.target.value },
               }))}
             />
+            <FieldError error={errors['general.nombre']} />
           </div>
           <CreatableCombobox
             label="Parroquia *"
             options={catalogs.parroquias}
+            error={errors['general.parroquia_id']}
             value={formData.general.parroquia_id ? {
               id: formData.general.parroquia_id,
               nombre: catalogs.parroquias.find((p) => p.id === formData.general.parroquia_id)?.nombre || '',
@@ -153,6 +251,7 @@ function RutaFormPage() {
             <label>Dificultad</label>
             <select
               value={formData.general.dificultad}
+              className={fieldClass(errors['general.dificultad'])}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
                 general: { ...prev.general, dificultad: e.target.value },
@@ -162,32 +261,42 @@ function RutaFormPage() {
               <option value="moderado">Moderado</option>
               <option value="dificil">Difícil</option>
             </select>
+            <FieldError error={errors['general.dificultad']} />
           </div>
           <div className="form-group">
             <label>Distancia (km)</label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={formData.general.distancia_km ?? ''}
+              className={fieldClass(errors['general.distancia_km'])}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
-                general: { ...prev.general, distancia_km: e.target.value ? Number(e.target.value) : null },
+                general: {
+                  ...prev.general,
+                  distancia_km: filterDecimalInput(e.target.value) || null,
+                },
               }))}
             />
+            <FieldError error={errors['general.distancia_km']} />
           </div>
           <div className="form-group form-full">
-            <label>Descripción</label>
+            <label>Descripción *</label>
             <textarea
               rows="4"
               value={formData.general.descripcion || ''}
+              className={fieldClass(errors['general.descripcion'])}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
                 general: { ...prev.general, descripcion: e.target.value },
               }))}
             />
+            <FieldError error={errors['general.descripcion']} />
           </div>
         </div>
 
         <h2 style={{ marginTop: 24 }}>Atractivos de la ruta (mínimo 2 para publicar)</h2>
+        <FieldError error={errors.atractivos_orden} />
         <div className="multi-select-grid">
           {catalogs.atractivos.map((atractivo) => (
             <label key={atractivo.id} className="checkbox-label">
@@ -205,7 +314,13 @@ function RutaFormPage() {
         )}
 
         <h2 style={{ marginTop: 24 }}>Galería</h2>
-        <GalleryUploader entidadTipo="ruta" entidadId={rutaId} />
+        <GalleryUploader
+          entidadTipo="ruta"
+          entidadId={entityId}
+          onEnsureEntity={ensureEntityForGallery}
+          onCountChange={setGalleryCount}
+          externalError={errors.galeria}
+        />
       </div>
 
       <div className="form-footer">

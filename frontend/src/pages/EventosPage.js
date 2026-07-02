@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiRequest } from '../services/apiClient';
 import { ADMIN_PATHS } from '../routes/adminPaths';
+import { useToast } from '../context/ToastContext';
+import { useErrorToast } from '../hooks/useErrorToast';
+import { useListSearch } from '../hooks/useListSearch';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -23,13 +26,13 @@ function formatFecha(iso) {
 function EventosPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [items, setItems] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [estados, setEstados] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useListSearch();
   const [categoriaId, setCategoriaId] = useState('');
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
@@ -72,11 +75,17 @@ function EventosPage() {
   }, [search, categoriaId, estado, page]);
 
   useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
     if (location.state?.saved) {
-      setSuccess(`Evento "${location.state.nombre || ''}" guardado correctamente.`);
+      toast.success(`Evento "${location.state.nombre || ''}" guardado correctamente.`);
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, navigate, toast]);
+
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchData } });
 
   const handleDelete = async (id) => {
     if (!window.confirm('¿Eliminar este evento?')) return;
@@ -119,12 +128,6 @@ function EventosPage() {
           Nuevo evento
         </button>
       </div>
-
-      {success && (
-        <div className="error-message" style={{ background: '#e8f7ee', color: '#1f6b3f', borderColor: '#b8e6c8', marginBottom: 16 }}>
-          {success}
-        </div>
-      )}
 
       <div className="filter-bar">
         <input
@@ -184,9 +187,33 @@ function EventosPage() {
                     </span>
                   </td>
                   <td className="actions-cell">
-                    <button type="button" title="Editar" onClick={() => navigate(ADMIN_PATHS.eventoEditar(item.id))}>✏️</button>
-                    <button type="button" title="Publicar / despublicar" onClick={() => handleToggleEstado(item)}>👁️</button>
-                    <button type="button" title="Eliminar" onClick={() => handleDelete(item.id)}>🗑️</button>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      title="Editar"
+                      aria-label="Editar"
+                      onClick={() => navigate(ADMIN_PATHS.eventoEditar(item.id))}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      title="Publicar / despublicar"
+                      aria-label="Cambiar estado"
+                      onClick={() => handleToggleEstado(item)}
+                    >
+                      Estado
+                    </button>
+                    <button
+                      type="button"
+                      className="action-btn"
+                      title="Eliminar"
+                      aria-label="Eliminar"
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      Eliminar
+                    </button>
                   </td>
                 </tr>
               ))
@@ -203,16 +230,6 @@ function EventosPage() {
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
         </div>
       </div>
-
-      {error && (
-        <p className="status-error">
-          {error}
-          {' '}
-          <button type="button" className="primary-button" style={{ marginLeft: 8, padding: '6px 12px' }} onClick={fetchData}>
-            Reintentar
-          </button>
-        </p>
-      )}
     </section>
   );
 }

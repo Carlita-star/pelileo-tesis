@@ -235,7 +235,7 @@ CREATE TABLE atractivos (
 
 CREATE TABLE atractivo_detalles (
     id BIGSERIAL PRIMARY KEY,
-    atractivo_id BIGINT UNIQUE NOT NULL REFERENCES atractivos(id) ON DELETE CASCADE,
+    atractivo_id BIGINT UNIQUE NOT NULL REFERENCES atractivos(id) ON DELETE CASCADE,011123111111111111111111111111112211
     clima VARCHAR(100),
     temperatura VARCHAR(50),
     precipitacion VARCHAR(50),

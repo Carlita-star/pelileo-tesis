@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
+import AdminDetailModal from '../../components/admin/AdminDetailModal';
+import DownloadFichaButton from '../../components/admin/DownloadFichaButton';
+import { useAdminDetail } from '../../hooks/useAdminDetail';
+import { useErrorToast } from '../../hooks/useErrorToast';
+import { useListSearch } from '../../hooks/useListSearch';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -11,11 +16,12 @@ const ESTADO_COLOR = {
 
 function RutasAdminPage() {
   const navigate = useNavigate();
+  const detail = useAdminDetail();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rutas, setRutas] = useState([]);
   const [estados, setEstados] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useListSearch();
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -47,6 +53,12 @@ function RutasAdminPage() {
   useEffect(() => {
     fetchRutas();
   }, [search, estado, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchRutas } });
 
   const handleDelete = async (id) => {
     if (!window.confirm('¿Eliminar esta ruta?')) return;
@@ -128,9 +140,13 @@ function RutasAdminPage() {
                     </span>
                   </td>
                   <td className="actions-cell">
-                    <button type="button" onClick={() => navigate(ADMIN_PATHS.rutaEditar(item.id))}>✏️</button>
-                    <button type="button" onClick={() => handleToggleEstado(item)}>👁️</button>
-                    <button type="button" onClick={() => handleDelete(item.id)}>🗑️</button>
+                    <div className="actions-cell-group">
+                    <button type="button" className="action-btn action-btn--view" onClick={() => detail.openDetail('ruta', item.id)} title="Ver detalle">Ver</button>
+                    <DownloadFichaButton type="ruta" id={item.id} compact />
+                    <button type="button" className="action-btn" onClick={() => navigate(ADMIN_PATHS.rutaEditar(item.id))} title="Editar">✏️</button>
+                    <button type="button" className="action-btn" onClick={() => handleToggleEstado(item)} title="Cambiar estado">🔁</button>
+                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Eliminar">🗑️</button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -147,7 +163,22 @@ function RutasAdminPage() {
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
         </div>
       </div>
-      {error && <p className="status-error">{error}</p>}
+
+      <AdminDetailModal
+        isOpen={detail.isOpen}
+        type={detail.type}
+        id={detail.id}
+        data={detail.data}
+        images={detail.images}
+        loading={detail.loading}
+        error={detail.error}
+        imageError={detail.imageError}
+        onClose={detail.close}
+        onEdit={detail.id ? () => {
+          detail.close();
+          navigate(ADMIN_PATHS.rutaEditar(detail.id));
+        } : undefined}
+      />
     </section>
   );
 }

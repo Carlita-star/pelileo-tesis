@@ -5,6 +5,8 @@ import GalleryUploader from '../../components/GalleryUploader';
 import { apiRequest } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
 import '../../styles/AtractivoForm.css';
+import { useToast } from '../../context/ToastContext';
+import { useErrorToast } from '../../hooks/useErrorToast';
 
 function toDatetimeLocal(iso) {
   if (!iso) return '';
@@ -21,12 +23,12 @@ function toIsoDatetime(localValue) {
 function EventoFormPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
   const { id } = useParams();
   const eventoId = id ? Number(id) : null;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [catalogs, setCatalogs] = useState({ categorias: [], estados: [] });
   const [formData, setFormData] = useState({
     nombre: '',
@@ -49,13 +51,13 @@ function EventoFormPage() {
 
   useEffect(() => {
     if (location.state?.saved) {
-      setSuccess(
+      toast.success(
         eventoId
           ? `Evento "${location.state.nombre || ''}" guardado. Ya puede subir la imagen.`
           : `Evento "${location.state.nombre || ''}" guardado correctamente.`,
       );
     }
-  }, [location.state, eventoId]);
+  }, [location.state, eventoId, toast]);
 
   const loadData = async () => {
     try {
@@ -87,6 +89,8 @@ function EventoFormPage() {
     }
   };
 
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: loadData } });
+
   const validateFechas = () => {
     if (formData.fecha_inicio && formData.fecha_fin) {
       if (new Date(formData.fecha_fin) < new Date(formData.fecha_inicio)) {
@@ -112,7 +116,6 @@ function EventoFormPage() {
 
   const handleSave = async (publish = false) => {
     setError('');
-    setSuccess('');
     setSaving(true);
     try {
       if (!formData.nombre.trim()) {
@@ -145,7 +148,6 @@ function EventoFormPage() {
       });
     } catch (err) {
       setError(err.message || 'Error al guardar el evento.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSaving(false);
     }
@@ -181,13 +183,6 @@ function EventoFormPage() {
           ))}
         </select>
       </div>
-
-      {error && <div className="error-message">{error}</div>}
-      {success && (
-        <div className="error-message" style={{ background: '#e8f7ee', color: '#1f6b3f', borderColor: '#b8e6c8' }}>
-          {success}
-        </div>
-      )}
 
       <div className="tabs-content" style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
         <h2>Datos del evento</h2>

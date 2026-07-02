@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
+import { useErrorToast } from '../../hooks/useErrorToast';
 
 function DashboardHomePage() {
   const navigate = useNavigate();
@@ -25,6 +26,8 @@ function DashboardHomePage() {
     }
     loadSummary();
   }, []);
+
+  useErrorToast(error);
 
   const totales = summary?.totales || {};
   const estadoPublicacion = summary?.estado_publicacion || {};
@@ -132,7 +135,6 @@ function DashboardHomePage() {
         <div>
           <p className="status-label">Conexión API</p>
           <p className="status-value">{backendStatus}</p>
-          {error && <p className="status-error">{error}</p>}
         </div>
       </section>
     </>

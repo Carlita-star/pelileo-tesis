@@ -20,6 +20,7 @@ import ConfiguracionPage from '../pages/ConfiguracionPage';
 import SinPermisoPage from '../pages/admin/SinPermisoPage';
 import PerfilPage from '../pages/admin/PerfilPage';
 import AdminOnlyRoute from './AdminOnlyRoute';
+import ErroresMonitorPage from '../pages/admin/ErroresMonitorPage';
 
 function AdminRoutes() {
   return (
@@ -59,6 +60,7 @@ function AdminRoutes() {
           <Route path="usuarios/:id/editar" element={<UsuarioFormPage />} />
           <Route path="reportes" element={<ReportesPage />} />
           <Route path="auditoria" element={<AuditoriasPage />} />
+          <Route path="errores" element={<ErroresMonitorPage />} />
         </Route>
       </Route>
     </Routes>

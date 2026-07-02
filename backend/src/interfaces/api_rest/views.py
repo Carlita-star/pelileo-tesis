@@ -1,11 +1,18 @@
 import json
 
 from datetime import datetime
+
+from django.http import (
+    HttpResponse,
+    JsonResponse,
+    HttpResponseBadRequest,
+    HttpResponseNotAllowed,
+    HttpResponseForbidden,
+    HttpResponseNotFound,
+)
 from src.application.use_cases.auditorias.listar_auditorias import ListarAuditorias
+from src.application.services.auditoria_export_service import auditorias_to_csv, auditorias_to_xlsx
 from src.infrastructure.repositories.django_auditoria_repository import DjangoAuditoriaRepository
-
-
-from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseForbidden, HttpResponseNotFound
 from django.views.decorators.http import require_GET, require_http_methods
 
 from src.domain.atractivos.models import Atractivo
@@ -26,6 +33,8 @@ from src.application.use_cases.atractivos.eliminar_atractivo_admin import Elimin
 from src.application.use_cases.atractivos.cambiar_estado_atractivo_admin import CambiarEstadoAtractivoAdminUseCase
 from src.application.use_cases.atractivos.obtener_atractivo_edicion import ObtenerAtractivoEdicionUseCase
 from src.application.use_cases.atractivos.guardar_atractivo import GuardarAtractivoUseCase
+from src.interfaces.api_rest.error_handlers import json_error_response
+from src.domain.shared.field_validation import FormValidationError, validar_texto_ciudad
 from src.application.dto.atractivo_dto import AtractivoCompleteDTO, AtractivoGeneralDTO, AtractivoUbicacionDTO, AtractivoDetalleDTO, AtractivoAccesibilidadDTO, AtractivoEstadoConservacionDTO, AtractivoAdministracionDTO
 from src.infrastructure.repositories.django_dashboard_repository import DjangoDashboardRepository
 from src.infrastructure.repositories.django_atractivo_repository import DjangoAtractivoAdminRepository
@@ -37,6 +46,11 @@ def _imagen_principal(tipo, entidad_id):
          .order_by('-principal', 'orden')
          .first())
     return m.archivo if m else None
+
+
+def _filtro_publicado():
+    """Solo contenido visible en el portal público."""
+    return {'activo': True, 'estado_publicacion__codigo': 'publicado'}
 
 @require_GET
 def api_root(request):
@@ -64,7 +78,7 @@ def api_root(request):
 @require_GET
 def atractivos_list(request):
     atractivos = (
-        Atractivo.objects.filter(activo=True)
+        Atractivo.objects.filter(**_filtro_publicado())
         .select_related('categoria', 'parroquia')
         .order_by('-destacado', '-visitas')[:20]
     )
@@ -91,7 +105,10 @@ def atractivos_list(request):
 
 @require_GET
 def rutas_list(request):
-    rutas = Ruta.objects.filter(activo=True).order_by('-destacado', '-creado_en')[:20]
+    rutas = (
+        Ruta.objects.filter(**_filtro_publicado())
+        .order_by('-destacado', '-creado_en')[:20]
+    )
 
     data = [
         {
@@ -115,7 +132,7 @@ def rutas_list(request):
 @require_GET
 def emprendimientos_list(request):
     emprendimientos = (
-        Emprendimiento.objects.filter(activo=True)
+        Emprendimiento.objects.filter(**_filtro_publicado())
         .select_related('categoria', 'parroquia', 'estado_publicacion')
         .order_by('-destacado', '-visitas')[:20]
     )
@@ -170,10 +187,11 @@ def usuarios_list(request):
 
 @require_GET
 def eventos_list(request):
-    eventos = Evento.objects.filter(
-        activo=True,
-        estado_publicacion__codigo='publicado',
-    ).select_related('categoria', 'estado_publicacion').order_by('fecha_inicio')[:20]
+    eventos = (
+        Evento.objects.filter(**_filtro_publicado())
+        .select_related('categoria', 'estado_publicacion')
+        .order_by('fecha_inicio')[:20]
+    )
 
     data = [
         {
@@ -196,6 +214,42 @@ def eventos_list(request):
     ]
 
     return JsonResponse({'results': data})
+
+
+@require_GET
+@admin_panel_required
+def admin_evento_detail(request, evento_id):
+    try:
+        evento_id = int(evento_id)
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest('ID de evento inválido.')
+
+    evento = Evento.objects.select_related('categoria', 'estado_publicacion').filter(id=evento_id).first()
+    if not evento:
+        return HttpResponseNotFound('Evento no encontrado.')
+
+    return JsonResponse({
+        'id': evento.id,
+        'nombre': evento.nombre,
+        'descripcion': evento.descripcion,
+        'direccion': evento.direccion,
+        'organizador': evento.organizador,
+        'contacto': evento.contacto,
+        'costo': float(evento.costo) if evento.costo is not None else None,
+        'fecha_inicio': evento.fecha_inicio.isoformat() if evento.fecha_inicio else None,
+        'fecha_fin': evento.fecha_fin.isoformat() if evento.fecha_fin else None,
+        'ubicacion': {
+            'latitud': float(evento.latitud) if evento.latitud is not None else None,
+            'longitud': float(evento.longitud) if evento.longitud is not None else None,
+        },
+        'meta': {
+            'categoria': evento.categoria.nombre if evento.categoria_id else None,
+            'estado_publicacion': evento.estado_publicacion.nombre if evento.estado_publicacion_id else None,
+            'creado_en': evento.creado_en.isoformat() if evento.creado_en else None,
+        },
+        'estado_publicacion_codigo': evento.estado_publicacion.codigo if evento.estado_publicacion_id else None,
+    })
+
 
 @require_GET
 def publicaciones_list(request):
@@ -260,22 +314,7 @@ def _serializar_auditoria(a):
 
 
 def _auditorias_a_csv(registros):
-    import csv
-    from io import StringIO
-
-    buffer = StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(['Fecha', 'Usuario', 'Acción', 'Módulo', 'ID registro', 'IP'])
-    for a in registros:
-        writer.writerow([
-            a.fecha.isoformat() if a.fecha else '',
-            a.nombre_usuario or 'Sistema',
-            a.accion or '',
-            a.tabla_afectada or '',
-            a.entidad_id if a.entidad_id is not None else '',
-            a.ip_address or '',
-        ])
-    return buffer.getvalue()
+    return auditorias_to_csv(registros)
 
 
 @require_GET
@@ -287,7 +326,7 @@ def auditorias_list(request):
     usuario_id = request.GET.get('usuario_id')
     page = request.GET.get('page', '1')
     page_size = request.GET.get('page_size', '20')
-    export_csv = request.GET.get('format') == 'csv'
+    export_format = (request.GET.get('format') or '').lower()
 
     try:
         usuario_id = int(usuario_id) if usuario_id else None
@@ -306,10 +345,19 @@ def auditorias_list(request):
     except ValueError as e:
         return HttpResponseBadRequest(str(e))
 
-    if export_csv:
+    if export_format == 'csv':
         csv_content = _auditorias_a_csv(registros)
         response = HttpResponse(csv_content, content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="auditoria.csv"'
+        return response
+
+    if export_format in ('xlsx', 'excel'):
+        xlsx_content = auditorias_to_xlsx(registros)
+        response = HttpResponse(
+            xlsx_content,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename="auditoria.xlsx"'
         return response
     total = len(registros)
     inicio = (page - 1) * page_size
@@ -505,17 +553,15 @@ def admin_atractivo_save(request, atractivo_id=None):
         return JsonResponse(result, status=201 if not atractivo_id else 200)
 
     except json.JSONDecodeError:
-        return HttpResponseBadRequest('JSON inválido.')
-    except ValueError as e:
-        return HttpResponseBadRequest(str(e))
+        return json_error_response(ValueError('El formato JSON de la solicitud no es válido.'), request=request, modulo='atractivos')
+    except FormValidationError as e:
+        return JsonResponse({'error': str(e), 'errors': e.errors, 'tipo': 'validacion'}, status=400)
     except Exception as e:
-        return HttpResponseBadRequest(f'Error al guardar: {str(e)}')
+        return json_error_response(e, request=request, modulo='atractivos')
 
 
 def _upsert_categoria(nombre: str) -> dict:
-    nombre = nombre.strip()
-    if not nombre:
-        raise ValueError('El nombre de la categoría es requerido.')
+    nombre = validar_texto_ciudad(nombre, 'Categoría', required=True)
 
     existente = Categoria.objects.filter(nombre__iexact=nombre).first()
     if existente:
@@ -529,9 +575,7 @@ def _upsert_categoria(nombre: str) -> dict:
 
 
 def _upsert_parroquia(nombre: str) -> dict:
-    nombre = nombre.strip()
-    if not nombre:
-        raise ValueError('El nombre de la parroquia es requerido.')
+    nombre = validar_texto_ciudad(nombre, 'Parroquia', required=True)
 
     existente = Parroquia.objects.filter(nombre__iexact=nombre).first()
     if existente:
@@ -591,7 +635,7 @@ def atractivos_detail(request, slug):
         a = (
             Atractivo.objects
             .select_related('categoria', 'parroquia', 'estado_publicacion')
-            .get(slug=slug, activo=True)
+            .get(slug=slug, **_filtro_publicado())
         )
     except Atractivo.DoesNotExist:
         return JsonResponse({'error': 'Atractivo no encontrado'}, status=404)
@@ -646,7 +690,7 @@ def atractivos_detail(request, slug):
             'distancia_referencial': float(r.distancia_referencial) if r.distancia_referencial is not None else None,
         }
         for r in EmprendimientoRelacion.objects
-            .filter(atractivo=a)
+            .filter(atractivo=a, emprendimiento__activo=True, emprendimiento__estado_publicacion__codigo='publicado')
             .select_related('emprendimiento', 'emprendimiento__categoria')
     ]
 
@@ -680,7 +724,7 @@ def rutas_detail(request, ruta_id):
     try:
         r = (Ruta.objects
              .select_related('parroquia', 'estado_publicacion')
-             .get(pk=ruta_id, activo=True))
+             .get(pk=ruta_id, **_filtro_publicado()))
     except Ruta.DoesNotExist:
         return JsonResponse({'error': 'Ruta no encontrada'}, status=404)
 
@@ -699,7 +743,11 @@ def rutas_detail(request, ruta_id):
                 'longitud': float(ra.atractivo.longitud) if ra.atractivo.longitud is not None else None,
             },
         }
-        for ra in r.atractivos.filter(activo=True).select_related('atractivo').order_by('orden_recorrido')
+        for ra in r.atractivos.filter(
+            activo=True,
+            atractivo__activo=True,
+            atractivo__estado_publicacion__codigo='publicado',
+        ).select_related('atractivo').order_by('orden_recorrido')
     ]
 
     multimedia = [
@@ -716,7 +764,11 @@ def rutas_detail(request, ruta_id):
             'distancia_referencial': float(rel.distancia_referencial) if rel.distancia_referencial is not None else None,
             'imagen': _imagen_principal('emprendimiento', rel.emprendimiento.id),
         }
-        for rel in EmprendimientoRelacion.objects.filter(ruta=r).select_related('emprendimiento', 'emprendimiento__categoria')
+        for rel in EmprendimientoRelacion.objects.filter(
+            ruta=r,
+            emprendimiento__activo=True,
+            emprendimiento__estado_publicacion__codigo='publicado',
+        ).select_related('emprendimiento', 'emprendimiento__categoria')
     ]
 
     data = {
@@ -746,7 +798,7 @@ def emprendimientos_detail(request, emp_id):
     try:
         e = (Emprendimiento.objects
              .select_related('categoria', 'parroquia', 'estado_publicacion')
-             .get(pk=emp_id, activo=True))
+             .get(pk=emp_id, **_filtro_publicado()))
     except Emprendimiento.DoesNotExist:
         return JsonResponse({'error': 'Emprendimiento no encontrado'}, status=404)
 
@@ -778,7 +830,12 @@ def emprendimientos_detail(request, emp_id):
             'imagen': _imagen_principal('atractivo', rel.atractivo.id),
         }
         for rel in EmprendimientoRelacion.objects
-            .filter(emprendimiento=e, atractivo__isnull=False)
+            .filter(
+                emprendimiento=e,
+                atractivo__isnull=False,
+                atractivo__activo=True,
+                atractivo__estado_publicacion__codigo='publicado',
+            )
             .select_related('atractivo', 'atractivo__categoria')
     ]
 

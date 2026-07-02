@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiRequest, getApiBase } from '../services/apiClient';
 import { ADMIN_PATHS } from '../routes/adminPaths';
+import { useToast } from '../context/ToastContext';
+import { useErrorToast } from '../hooks/useErrorToast';
+import { useListSearch } from '../hooks/useListSearch';
 
 const ROL_LABELS = {
   administrador: 'Administrador',
@@ -40,12 +43,12 @@ function Avatar({ item }) {
 function UsuariosPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [items, setItems] = useState([]);
   const [roles, setRoles] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useListSearch();
   const [rolId, setRolId] = useState('');
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
@@ -87,17 +90,23 @@ function UsuariosPage() {
   }, [search, rolId, estado, page]);
 
   useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
     if (location.state?.saved) {
-      setSuccess(`Usuario "${location.state.nombre || ''}" guardado correctamente.`);
+      toast.success(`Usuario "${location.state.nombre || ''}" guardado correctamente.`);
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, navigate, toast]);
+
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchData } });
 
   const handleDelete = async (item) => {
     if (!window.confirm(`¿Eliminar al usuario "${item.nombre_completo}"? Esta acción no se puede deshacer.`)) return;
     try {
       await apiRequest(`/api/admin/usuarios/${item.id}/`, { method: 'DELETE' });
-      setSuccess('Usuario eliminado correctamente.');
+      toast.success('Usuario eliminado correctamente.');
       fetchData();
     } catch (err) {
       setError(err.message || 'Error al eliminar el usuario.');
@@ -137,8 +146,6 @@ function UsuariosPage() {
           Nuevo usuario
         </button>
       </div>
-
-      {success && <div className="success-message">{success}</div>}
 
       <div className="filter-bar">
         <input
@@ -235,16 +242,6 @@ function UsuariosPage() {
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
         </div>
       </div>
-
-      {error && (
-        <p className="status-error">
-          {error}
-          {' '}
-          <button type="button" className="primary-button" style={{ marginLeft: 8, padding: '6px 12px' }} onClick={fetchData}>
-            Reintentar
-          </button>
-        </p>
-      )}
     </section>
   );
 }

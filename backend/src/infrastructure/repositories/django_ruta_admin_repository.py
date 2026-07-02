@@ -109,14 +109,21 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
         if not ruta:
             return None
 
-        atractivos_orden = list(
+        atractivos_orden = (
             RutaAtractivo.objects.filter(ruta=ruta, activo=True)
+            .select_related('atractivo')
             .order_by('orden_recorrido')
-            .values('atractivo_id', 'orden_recorrido')
         )
 
         return {
             'id': ruta.id,
+            'meta': {
+                'parroquia': ruta.parroquia.nombre if ruta.parroquia_id else None,
+                'estado_publicacion': ruta.estado_publicacion.nombre if ruta.estado_publicacion_id else None,
+                'creado_en': ruta.creado_en.isoformat() if ruta.creado_en else None,
+                'actualizado_en': ruta.actualizado_en.isoformat() if ruta.actualizado_en else None,
+                'visitas': ruta.visitas,
+            },
             'general': {
                 'nombre': ruta.nombre,
                 'descripcion': ruta.descripcion,
@@ -128,7 +135,15 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
                 'parroquia_id': ruta.parroquia_id,
             },
             'atractivos_orden': [
-                {'atractivo_id': item['atractivo_id'], 'orden': item['orden_recorrido']}
+                {'atractivo_id': item.atractivo_id, 'orden': item.orden_recorrido}
+                for item in atractivos_orden
+            ],
+            'puntos_interes': [
+                {
+                    'orden': item.orden_recorrido,
+                    'atractivo_id': item.atractivo_id,
+                    'nombre': item.atractivo.nombre if item.atractivo_id else None,
+                }
                 for item in atractivos_orden
             ],
             'geojson_ruta': ruta.geojson_ruta,

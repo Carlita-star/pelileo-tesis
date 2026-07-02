@@ -47,3 +47,21 @@ export function isAdministrador(user = getStoredUser()) {
   const roles = user?.roles || [];
   return roles.some((role) => normalizeRole(role) === 'administrador');
 }
+
+const ROLE_LABELS = {
+  administrador: 'Administrador',
+  gestor_turistico: 'Gestor turístico',
+  visitante: 'Visitante',
+};
+
+export function getPrimaryRoleLabel(user = getStoredUser()) {
+  const roles = (user?.roles || []).map(normalizeRole);
+  if (roles.includes('administrador')) return ROLE_LABELS.administrador;
+  if (roles.includes('gestor_turistico')) return ROLE_LABELS.gestor_turistico;
+  if (roles.includes('visitante')) return ROLE_LABELS.visitante;
+  return 'Sin rol de panel';
+}
+
+export function canEditConfiguration(user = getStoredUser()) {
+  return hasPanelAccess(user);
+}

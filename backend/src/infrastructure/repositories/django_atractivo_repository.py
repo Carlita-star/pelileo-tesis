@@ -143,8 +143,23 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         servicios = list(atractivo.atractivo_servicios.values_list('servicio_id', flat=True))
         actividades = list(atractivo.atractivo_actividades.values_list('actividad_id', flat=True))
 
+        servicios_nombres = list(
+            Servicio.objects.filter(id__in=servicios).values('id', 'nombre')
+        ) if servicios else []
+        actividades_nombres = list(
+            Actividad.objects.filter(id__in=actividades).values('id', 'nombre')
+        ) if actividades else []
+
         return {
             'id': atractivo.id,
+            'meta': {
+                'categoria': atractivo.categoria.nombre if atractivo.categoria_id else None,
+                'parroquia': atractivo.parroquia.nombre if atractivo.parroquia_id else None,
+                'estado_publicacion': atractivo.estado_publicacion.nombre if atractivo.estado_publicacion_id else None,
+                'creado_en': atractivo.creado_en.isoformat() if atractivo.creado_en else None,
+                'actualizado_en': atractivo.actualizado_en.isoformat() if atractivo.actualizado_en else None,
+                'visitas': atractivo.visitas,
+            },
             'general': {
                 'nombre': atractivo.nombre,
                 'slug': atractivo.slug,
@@ -201,6 +216,8 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
             },
             'servicios_ids': servicios,
             'actividades_ids': actividades,
+            'servicios': servicios_nombres,
+            'actividades': actividades_nombres,
             'estado_publicacion_codigo': atractivo.estado_publicacion.codigo if atractivo.estado_publicacion else 'borrador',
         }
 

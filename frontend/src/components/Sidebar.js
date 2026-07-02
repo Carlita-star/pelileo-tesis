@@ -14,6 +14,7 @@ const menuItems = [
   { path: ADMIN_PATHS.usuarios, label: 'Usuarios', adminOnly: true },
   { path: ADMIN_PATHS.configuracion, label: 'Configuración' },
   { path: ADMIN_PATHS.auditoria, label: 'Auditoría', adminOnly: true },
+  { path: ADMIN_PATHS.errores, label: 'Errores', adminOnly: true },
   { path: ADMIN_PATHS.reportes, label: 'Reportes', adminOnly: true },
 ];
 

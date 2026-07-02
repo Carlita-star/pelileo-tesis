@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { apiRequest, getApiBase, getAuthHeaders } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
 import '../../styles/AtractivoForm.css';
+import { useErrorToast } from '../../hooks/useErrorToast';
 
 const ROL_LABELS = {
   administrador: 'Administrador',
@@ -79,6 +80,8 @@ function UsuarioFormPage() {
       setLoading(false);
     }
   };
+
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: loadData } });
 
   const toggleRol = (rolId) => {
     setForm((prev) => {
@@ -320,8 +323,6 @@ function UsuarioFormPage() {
           />
           Usuario activo
         </label>
-
-        {error && <p className="status-error">{error}</p>}
 
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={() => navigate(ADMIN_PATHS.usuarios)}>

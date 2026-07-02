@@ -8,6 +8,8 @@ from src.application.dto.emprendimiento_dto import (
     EmprendimientoGeneralDTO,
     EmprendimientoUbicacionDTO,
 )
+from src.application.validators.admin_forms import validar_emprendimiento_form
+from src.domain.shared.field_validation import FormValidationError
 from src.infrastructure.repositories.django_emprendimiento_admin_repository import (
     DjangoEmprendimientoAdminRepository,
 )
@@ -112,10 +114,16 @@ def admin_emprendimiento_save(request, emprendimiento_id=None):
             relaciones=payload.get('relaciones', []),
             estado_publicacion_codigo=payload.get('estado_publicacion_codigo', 'borrador'),
         )
+        validar_emprendimiento_form(
+            dto,
+            publicar=dto.estado_publicacion_codigo == 'publicado',
+        )
         result = DjangoEmprendimientoAdminRepository().guardar_completo(dto, request.jwt_user.id)
         return JsonResponse(result, status=201 if not emprendimiento_id else 200)
     except json.JSONDecodeError:
         return HttpResponseBadRequest('JSON inválido.')
+    except FormValidationError as exc:
+        return JsonResponse({'error': str(exc), 'errors': exc.errors}, status=400)
     except ValueError as exc:
         return HttpResponseBadRequest(str(exc))
     except Exception as exc:

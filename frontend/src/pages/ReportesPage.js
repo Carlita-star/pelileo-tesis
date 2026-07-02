@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest, getApiBase, getAuthHeaders } from '../services/apiClient';
+import { useToast } from '../context/ToastContext';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 const EMPTY_FILTROS = {
   estado: 'todos',
@@ -10,10 +12,10 @@ const EMPTY_FILTROS = {
 };
 
 function ReportesPage() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [generando, setGenerando] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [tipos, setTipos] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [filtrosMeta, setFiltrosMeta] = useState({ estados: [], categorias: [], estados_usuario: [] });
@@ -46,11 +48,12 @@ function ReportesPage() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: cargar } });
+
   const abrirModal = (tipo) => {
     setModalTipo(tipo);
     setFiltros({ ...EMPTY_FILTROS });
     setError('');
-    setSuccess('');
   };
 
   const cerrarModal = () => {
@@ -77,7 +80,7 @@ function ReportesPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err.message || 'No se pudo descargar el archivo.');
+      toast.error(err.message || 'No se pudo descargar el archivo.');
     }
   };
 
@@ -87,7 +90,6 @@ function ReportesPage() {
 
     setGenerando(true);
     setError('');
-    setSuccess('');
     try {
       const payload = {
         tipo_reporte: modalTipo.key,
@@ -104,14 +106,14 @@ function ReportesPage() {
         body: JSON.stringify(payload),
       });
       setUltimoGenerado(result);
-      setSuccess(`Reporte generado correctamente (${result.formato?.toUpperCase()}).`);
+      toast.success(`Reporte generado correctamente (${result.formato?.toUpperCase()}).`);
       setModalTipo(null);
       cargar();
       if (result.id) {
         await descargar(result.id, result.archivo_generado?.split('/').pop());
       }
     } catch (err) {
-      setError(err.message || 'Error al generar el reporte.');
+      toast.error(err.message || 'Error al generar el reporte.');
     } finally {
       setGenerando(false);
     }
@@ -129,9 +131,6 @@ function ReportesPage() {
           </p>
         </div>
       </div>
-
-      {success && <div className="success-message">{success}</div>}
-      {error && <p className="status-error">{error}</p>}
 
       {ultimoGenerado && (
         <div className="reporte-descarga-reciente">

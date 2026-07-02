@@ -20,6 +20,7 @@ export const ADMIN_PATHS = {
   usuarioEditar: (id) => `/admin/usuarios/${id}/editar`,
   configuracion: '/admin/configuracion',
   auditoria: '/admin/auditoria',
+  errores: '/admin/errores',
   reportes: '/admin/reportes',
   sinPermiso: '/admin/sin-permiso',
   perfil: '/admin/perfil',

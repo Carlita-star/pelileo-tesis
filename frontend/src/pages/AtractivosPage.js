@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../services/apiClient';
 import { ADMIN_PATHS } from '../routes/adminPaths';
+import AdminDetailModal from '../components/admin/AdminDetailModal';
+import DownloadFichaButton from '../components/admin/DownloadFichaButton';
+import { useAdminDetail } from '../hooks/useAdminDetail';
+import { useErrorToast } from '../hooks/useErrorToast';
+import { useListSearch } from '../hooks/useListSearch';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -11,13 +16,14 @@ const ESTADO_COLOR = {
 
 function AtractivosPage() {
   const navigate = useNavigate();
+  const detail = useAdminDetail();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [atractivos, setAtractivos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [parroquias, setParroquias] = useState([]);
   const [estados, setEstados] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useListSearch();
   const [categoriaId, setCategoriaId] = useState('');
   const [parroquiaId, setParroquiaId] = useState('');
   const [estado, setEstado] = useState('todos');
@@ -46,7 +52,7 @@ function AtractivosPage() {
       setTotal(data.total ?? 0);
       setTotalPages(data.total_pages ?? 1);
     } catch (err) {
-      setError('No se pudieron cargar los atractivos. Comprueba la conexión con el backend.');
+      setError(err.message || 'No se pudieron cargar los atractivos.');
     } finally {
       setLoading(false);
     }
@@ -55,6 +61,12 @@ function AtractivosPage() {
   useEffect(() => {
     fetchAtractivos();
   }, [search, categoriaId, parroquiaId, estado, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchAtractivos } });
 
   const visibleRows = useMemo(() => atractivos, [atractivos]);
 
@@ -218,15 +230,26 @@ function AtractivosPage() {
                   </td>
                   <td>{item.visitas ?? 0}</td>
                   <td className="actions-cell">
-                    <button type="button" onClick={() => handleEditar(item.id)} aria-label="Editar">
+                    <div className="actions-cell-group">
+                    <button
+                      type="button"
+                      className="action-btn action-btn--view"
+                      onClick={() => detail.openDetail('atractivo', item.id)}
+                      title="Ver detalle"
+                    >
+                      Ver
+                    </button>
+                    <DownloadFichaButton type="atractivo" id={item.id} compact />
+                    <button type="button" className="action-btn" onClick={() => handleEditar(item.id)} title="Editar" aria-label="Editar">
                       ✏️
                     </button>
-                    <button type="button" onClick={() => handleToggleEstado(item)} aria-label="Cambiar estado">
-                      👁️
+                    <button type="button" className="action-btn" onClick={() => handleToggleEstado(item)} title="Cambiar estado" aria-label="Cambiar estado">
+                      🔁
                     </button>
-                    <button type="button" onClick={() => handleDelete(item.id)} aria-label="Eliminar">
+                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Eliminar" aria-label="Eliminar">
                       🗑️
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -261,7 +284,21 @@ function AtractivosPage() {
         </div>
       </div>
 
-      {error && <p className="status-error">{error}</p>}
+      <AdminDetailModal
+        isOpen={detail.isOpen}
+        type={detail.type}
+        id={detail.id}
+        data={detail.data}
+        images={detail.images}
+        loading={detail.loading}
+        error={detail.error}
+        imageError={detail.imageError}
+        onClose={detail.close}
+        onEdit={detail.id ? () => {
+          detail.close();
+          navigate(ADMIN_PATHS.atractivoEditar(detail.id));
+        } : undefined}
+      />
     </section>
   );
 }

@@ -65,6 +65,33 @@ function AuditoriasPage() {
     setFiltros((f) => ({ ...f, [campo]: valor }));
   };
 
+  const exportarExcel = async () => {
+    setExportando(true);
+    setError(null);
+    try {
+      const params = buildParams(1, 100);
+      params.set('format', 'xlsx');
+      const response = await fetch(`${getApiBase()}/api/auditorias/?${params.toString()}`, {
+        headers: getAuthHeaders(false),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Error ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `auditoria_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'No se pudo exportar el reporte.');
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const exportarCsv = async () => {
     setExportando(true);
     setError(null);
@@ -101,14 +128,24 @@ function AuditoriasPage() {
             Revisa el historial de operaciones críticas: quién hizo qué, cuándo y sobre qué registro.
           </p>
         </div>
-        <button
-          type="button"
-          className="primary-button"
-          onClick={exportarCsv}
-          disabled={exportando || loading}
-        >
-          {exportando ? 'Exportando…' : 'Exportar'}
-        </button>
+        <div className="header-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={exportarCsv}
+            disabled={exportando || loading}
+          >
+            {exportando ? 'Exportando…' : 'Exportar CSV'}
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={exportarExcel}
+            disabled={exportando || loading}
+          >
+            {exportando ? 'Exportando…' : 'Exportar Excel'}
+          </button>
+        </div>
       </div>
 
       <div className="filter-bar">

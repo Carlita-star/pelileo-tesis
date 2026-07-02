@@ -124,6 +124,9 @@ class DjangoEmprendimientoAdminRepository(EmprendimientoAdminRepositoryPort):
             return None
 
         servicios_ids = list(item.servicios.values_list('servicio_id', flat=True))
+        servicios_nombres = list(
+            Servicio.objects.filter(id__in=servicios_ids).values('id', 'nombre')
+        ) if servicios_ids else []
         redes = list(item.redes_sociales.filter(activo=True).values('nombre_red', 'url'))
         relaciones = list(
             item.relaciones.values('atractivo_id', 'ruta_id', 'distancia_referencial', 'descripcion')
@@ -131,6 +134,13 @@ class DjangoEmprendimientoAdminRepository(EmprendimientoAdminRepositoryPort):
 
         return {
             'id': item.id,
+            'meta': {
+                'categoria': item.categoria.nombre if item.categoria_id else None,
+                'parroquia': item.parroquia.nombre if item.parroquia_id else None,
+                'estado_publicacion': item.estado_publicacion.nombre if item.estado_publicacion_id else None,
+                'creado_en': item.creado_en.isoformat() if item.creado_en else None,
+                'actualizado_en': item.actualizado_en.isoformat() if getattr(item, 'actualizado_en', None) else None,
+            },
             'general': {
                 'nombre': item.nombre,
                 'descripcion': item.descripcion,
@@ -148,6 +158,7 @@ class DjangoEmprendimientoAdminRepository(EmprendimientoAdminRepositoryPort):
                 'altitud': float(item.altitud) if item.altitud else None,
             },
             'servicios_ids': servicios_ids,
+            'servicios': servicios_nombres,
             'redes_sociales': redes,
             'relaciones': relaciones,
             'estado_publicacion_codigo': item.estado_publicacion.codigo if item.estado_publicacion else 'borrador',

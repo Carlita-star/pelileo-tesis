@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ADMIN_PATHS } from './routes/adminPaths';
 import './styles/tailwind.output.css';
 import './App.css';
 
 import { ConfiguracionProvider } from './context/ConfiguracionContext';
+import { ToastProvider } from './context/ToastContext';
 import PublicLayout from './components/publico/layout/PublicLayout';
 import Home from './pages/publico/Home';
 import CatalogoAtractivos from './pages/publico/CatalogoAtractivos';
@@ -19,8 +21,10 @@ import AdminRoutes from './routes/AdminRoutes';
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <ConfiguracionProvider>
+        <ToastProvider>
         <Routes>
           <Route element={<PublicLayout />}>
             <Route index element={<Home />} />
@@ -38,7 +42,9 @@ export default function App() {
           <Route path="/admin" element={<Navigate to={ADMIN_PATHS.login} replace />} />
           <Route path="/admin/*" element={<AdminRoutes />} />
         </Routes>
+        </ToastProvider>
       </ConfiguracionProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }

@@ -10,6 +10,8 @@ from src.application.services.jwt_service import JwtService
 from src.application.use_cases.usuarios.cambiar_password import RestablecerPasswordUseCase
 from src.application.use_cases.usuarios.login_usuario import LoginUsuarioUseCase
 from src.application.use_cases.usuarios.recuperar_password import RecuperarPasswordUseCase
+from src.application.validators.admin_forms import validar_registro_usuario
+from src.domain.shared.field_validation import FormValidationError
 from src.infrastructure.repositories.django_usuario_repository import DjangoUsuarioRepository
 from src.interfaces.api_rest.auth_utils import user_has_panel_access
 from src.domain.roles.models import Rol, UsuarioRol
@@ -22,10 +24,7 @@ def register(request):
     """Endpoint para registrar un nuevo usuario."""
     try:
         data = json.loads(request.body)
-        required_fields = ['nombres', 'apellidos', 'username', 'email', 'password']
-        for field in required_fields:
-            if not data.get(field):
-                return JsonResponse({'error': f'El campo {field} es requerido.'}, status=400)
+        validar_registro_usuario(data)
 
         if Usuario.objects.filter(username=data['username']).exists():
             return JsonResponse({'error': 'El usuario ya existe.'}, status=400)
@@ -62,6 +61,8 @@ def register(request):
         )
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido.'}, status=400)
+    except FormValidationError as exc:
+        return JsonResponse({'error': str(exc), 'errors': exc.errors}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

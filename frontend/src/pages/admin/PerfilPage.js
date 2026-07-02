@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest, getApiBase, getAuthHeaders } from '../../services/apiClient';
 import { getStoredUser, updateStoredUser } from '../../services/authStorage';
+import { useToast } from '../../context/ToastContext';
+import { useErrorToast } from '../../hooks/useErrorToast';
 
 function buildFotoUrl(fotoUrl) {
   if (!fotoUrl) return null;
@@ -21,13 +23,12 @@ function formatFecha(iso) {
 }
 
 function PerfilPage() {
+  const toast = useToast();
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [savingPerfil, setSavingPerfil] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [error, setError] = useState('');
-  const [perfilSuccess, setPerfilSuccess] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
   const [perfil, setPerfil] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [pendingFile, setPendingFile] = useState(null);
@@ -62,12 +63,13 @@ function PerfilPage() {
     loadPerfil();
   }, []);
 
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: loadPerfil } });
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPendingFile(file);
     setPreviewUrl(URL.createObjectURL(file));
-    setPerfilSuccess('');
   };
 
   const uploadFoto = async (file) => {
@@ -95,7 +97,6 @@ function PerfilPage() {
     e.preventDefault();
     setSavingPerfil(true);
     setError('');
-    setPerfilSuccess('');
 
     try {
       let updated = await apiRequest('/api/admin/perfil/actualizar/', {
@@ -111,7 +112,7 @@ function PerfilPage() {
 
       setPerfil(updated);
       setPreviewUrl(buildFotoUrl(updated.foto_url));
-      setPerfilSuccess('Datos del perfil actualizados correctamente.');
+      toast.success('Datos del perfil actualizados correctamente.');
 
       const stored = getStoredUser();
       if (stored) {
@@ -122,7 +123,7 @@ function PerfilPage() {
         });
       }
     } catch (err) {
-      setError(err.message || 'No se pudieron guardar los cambios.');
+      toast.error(err.message || 'No se pudieron guardar los cambios.');
     } finally {
       setSavingPerfil(false);
     }
@@ -132,21 +133,20 @@ function PerfilPage() {
     e.preventDefault();
     setSavingPassword(true);
     setError('');
-    setPasswordSuccess('');
 
     try {
       const result = await apiRequest('/api/admin/perfil/password/', {
         method: 'PUT',
         body: JSON.stringify(passwordForm),
       });
-      setPasswordSuccess(result.message || 'Contraseña actualizada correctamente.');
+      toast.success(result.message || 'Contraseña actualizada correctamente.');
       setPasswordForm({
         password_actual: '',
         password_nueva: '',
         password_confirmacion: '',
       });
     } catch (err) {
-      setError(err.message || 'No se pudo cambiar la contraseña.');
+      toast.error(err.message || 'No se pudo cambiar la contraseña.');
     } finally {
       setSavingPassword(false);
     }
@@ -185,9 +185,6 @@ function PerfilPage() {
             </p>
           </div>
         </div>
-
-        {perfilSuccess && <div className="success-message">{perfilSuccess}</div>}
-        {error && <p className="status-error">{error}</p>}
 
         <div className="perfil-layout">
           <div className="perfil-avatar-block">
@@ -307,7 +304,6 @@ function PerfilPage() {
 
       <section className="panel-card perfil-password-card">
         <h3 className="perfil-section-title">Cambiar contraseña</h3>
-        {passwordSuccess && <div className="success-message">{passwordSuccess}</div>}
 
         <form className="catalog-form perfil-form" onSubmit={handleSavePassword}>
           <div className="usuario-form-grid">

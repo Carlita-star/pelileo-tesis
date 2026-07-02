@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest, getApiBase, getAuthHeaders } from '../services/apiClient';
 import { applySiteFavicon } from '../services/configuracion.service';
+import MenuNavegacionTab from '../components/configuracion/MenuNavegacionTab';
+import { useToast } from '../context/ToastContext';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 const TABS = [
   { key: 'gad', label: 'Datos del GAD' },
@@ -31,25 +34,12 @@ function emptyRed() {
   return { id: null, nombre: 'Facebook', url: '', activo: true };
 }
 
-function emptyMenuItem(orden = 0) {
-  return {
-    id: null,
-    nombre: '',
-    ruta: '/',
-    icono: '',
-    orden,
-    visible: true,
-    menu_padre_id: null,
-    abierto_nueva_pestana: false,
-  };
-}
-
 function ConfiguracionPage() {
+  const toast = useToast();
   const [tabActiva, setTabActiva] = useState('gad');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const [gad, setGad] = useState({});
   const [identidad, setIdentidad] = useState({});
@@ -111,19 +101,20 @@ function ConfiguracionPage() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: cargar } });
+
   const guardar = async (endpoint, payload, mensaje) => {
     setSaving(true);
     setError('');
-    setSuccess('');
     try {
       const data = await apiRequest(`/api/admin/configuracion/${endpoint}/`, {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
       aplicarDatos(data);
-      setSuccess(mensaje);
+      toast.success(mensaje);
     } catch (err) {
-      setError(err.message || 'Error al guardar.');
+      toast.error(err.message || 'Error al guardar.');
     } finally {
       setSaving(false);
     }
@@ -160,22 +151,12 @@ function ConfiguracionPage() {
       if (tipo === 'favicon' && imageUrl) {
         applySiteFavicon(imageUrl, { cacheBust: true });
       }
-      setSuccess('Imagen cargada correctamente.');
+      toast.success('Imagen cargada correctamente.');
     } catch (err) {
-      setError(err.message || 'Error al subir la imagen.');
+      toast.error(err.message || 'Error al subir la imagen.');
     } finally {
       setSaving(false);
     }
-  };
-
-  const moverMenu = (index, dir) => {
-    setMenus((prev) => {
-      const next = [...prev];
-      const target = index + dir;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next.map((m, i) => ({ ...m, orden: i }));
-    });
   };
 
   if (loading) {
@@ -197,9 +178,6 @@ function ConfiguracionPage() {
         </div>
       </div>
 
-      {success && <div className="success-message">{success}</div>}
-      {error && <p className="status-error">{error}</p>}
-
       <div className="catalog-tabs">
         <div className="catalog-tabs-header">
           {TABS.map((tab) => (
@@ -207,7 +185,7 @@ function ConfiguracionPage() {
               key={tab.key}
               type="button"
               className={`catalog-tab-button ${tabActiva === tab.key ? 'active' : ''}`}
-              onClick={() => { setTabActiva(tab.key); setSuccess(''); setError(''); }}
+              onClick={() => setTabActiva(tab.key)}
             >
               {tab.label}
             </button>
@@ -406,33 +384,12 @@ function ConfiguracionPage() {
           )}
 
           {tabActiva === 'menu' && (
-            <form className="catalog-form config-form" onSubmit={(e) => {
-              e.preventDefault();
-              guardar('menu', { items: menus }, 'Menú guardado.');
-            }}
-            >
-              {menus.map((item, idx) => (
-                <div key={item.id || `menu-${idx}`} className="config-list-item config-menu-item">
-                  <input placeholder="Nombre" value={item.nombre || ''} onChange={(e) => setMenus((m) => m.map((x, i) => (i === idx ? { ...x, nombre: e.target.value } : x)))} />
-                  <input placeholder="Ruta (/eventos)" value={item.ruta || ''} onChange={(e) => setMenus((m) => m.map((x, i) => (i === idx ? { ...x, ruta: e.target.value } : x)))} />
-                  <select value={item.menu_padre_id || ''} onChange={(e) => setMenus((m) => m.map((x, i) => (i === idx ? { ...x, menu_padre_id: e.target.value ? Number(e.target.value) : null } : x)))}>
-                    <option value="">Sin padre (nivel principal)</option>
-                    {menus.filter((m) => m.id && !m.menu_padre_id).map((m) => (
-                      <option key={m.id} value={m.id}>{m.nombre}</option>
-                    ))}
-                  </select>
-                  <label className="checkbox-label">
-                    <input type="checkbox" checked={item.visible !== false} onChange={(e) => setMenus((m) => m.map((x, i) => (i === idx ? { ...x, visible: e.target.checked } : x)))} />
-                    Visible
-                  </label>
-                  <button type="button" title="Subir" onClick={() => moverMenu(idx, -1)}>⬆️</button>
-                  <button type="button" title="Bajar" onClick={() => moverMenu(idx, 1)}>⬇️</button>
-                  <button type="button" onClick={() => setMenus((m) => m.filter((_, i) => i !== idx))}>🗑️</button>
-                </div>
-              ))}
-              <button type="button" className="secondary-button" onClick={() => setMenus((m) => [...m, emptyMenuItem(m.length)])}>+ Agregar ítem</button>
-              <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
-            </form>
+            <MenuNavegacionTab
+              menus={menus}
+              setMenus={setMenus}
+              saving={saving}
+              onSubmit={() => guardar('menu', { items: menus }, 'Menú guardado.')}
+            />
           )}
 
           {tabActiva === 'mapa' && (

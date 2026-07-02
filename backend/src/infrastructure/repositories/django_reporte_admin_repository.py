@@ -7,13 +7,13 @@ from typing import Any, Dict, List, Optional, Tuple
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
-from openpyxl import Workbook
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from src.application.ports.reporte_admin_repository import ReporteAdminRepositoryPort
+from src.application.services.reporte_export_service import (
+    build_filtros_subtitulo,
+    generar_excel_formateado,
+    generar_pdf_formateado,
+)
 from src.domain.atractivos.models import Atractivo
 from src.domain.catalogos.categorias import Categoria
 from src.domain.catalogos.estados_publicacion import EstadoPublicacion
@@ -125,6 +125,18 @@ class DjangoReporteAdminRepository(ReporteAdminRepositoryPort):
             ],
         }
 
+    def _format_fecha_corta(self, dt) -> str:
+        if not dt:
+            return ''
+        local = timezone.localtime(dt) if timezone.is_aware(dt) else dt
+        return local.strftime('%d/%m/%Y')
+
+    def _format_fecha_hora(self, dt) -> str:
+        if not dt:
+            return ''
+        local = timezone.localtime(dt) if timezone.is_aware(dt) else dt
+        return local.strftime('%d/%m/%Y %H:%M')
+
     def _aplicar_filtros_fecha(self, qs, desde: Optional[str], hasta: Optional[str], campo='creado_en'):
         fecha_desde = self._parse_date(desde)
         fecha_hasta = self._parse_date(hasta)
@@ -155,7 +167,7 @@ class DjangoReporteAdminRepository(ReporteAdminRepositoryPort):
                     a.parroquia.nombre if a.parroquia_id else '',
                     a.estado_publicacion.nombre if a.estado_publicacion_id else '',
                     a.visitas,
-                    a.creado_en.strftime('%Y-%m-%d') if a.creado_en else '',
+                    self._format_fecha_corta(a.creado_en),
                 ]
                 for a in qs.order_by('nombre')
             ]
@@ -175,7 +187,7 @@ class DjangoReporteAdminRepository(ReporteAdminRepositoryPort):
                     r.dificultad or '',
                     r.estado_publicacion.nombre if r.estado_publicacion_id else '',
                     r.visitas,
-                    r.creado_en.strftime('%Y-%m-%d') if r.creado_en else '',
+                    self._format_fecha_corta(r.creado_en),
                 ]
                 for r in qs.order_by('nombre')
             ]
@@ -196,7 +208,7 @@ class DjangoReporteAdminRepository(ReporteAdminRepositoryPort):
                     e.parroquia.nombre if e.parroquia_id else '',
                     e.telefono or '',
                     e.estado_publicacion.nombre if e.estado_publicacion_id else '',
-                    e.creado_en.strftime('%Y-%m-%d') if e.creado_en else '',
+                    self._format_fecha_corta(e.creado_en),
                 ]
                 for e in qs.order_by('nombre')
             ]
@@ -222,47 +234,44 @@ class DjangoReporteAdminRepository(ReporteAdminRepositoryPort):
                     u.email,
                     roles,
                     'Sí' if u.activo else 'No',
-                    u.ultimo_acceso.strftime('%Y-%m-%d %H:%M') if u.ultimo_acceso else '',
-                    u.creado_en.strftime('%Y-%m-%d') if u.creado_en else '',
+                    self._format_fecha_hora(u.ultimo_acceso),
+                    self._format_fecha_corta(u.creado_en),
                 ])
             return TIPOS_INFO['usuarios']['nombre'], headers, rows
 
         raise ValueError('Tipo de reporte no válido.')
 
-    def _generar_excel(self, titulo: str, headers: List[str], rows: List[List[Any]], filepath: str) -> None:
-        wb = Workbook()
-        ws = wb.active
-        ws.title = 'Reporte'
-        ws.append([titulo])
-        ws.append([])
-        ws.append(headers)
-        for row in rows:
-            ws.append(row)
-        wb.save(filepath)
+    def _generar_excel(
+        self,
+        titulo: str,
+        headers: List[str],
+        rows: List[List[Any]],
+        filepath: str,
+        filtros: Optional[dict] = None,
+    ) -> None:
+        generar_excel_formateado(
+            titulo,
+            headers,
+            rows,
+            filepath,
+            subtitulo=build_filtros_subtitulo(filtros),
+        )
 
-    def _generar_pdf(self, titulo: str, headers: List[str], rows: List[List[Any]], filepath: str) -> None:
-        doc = SimpleDocTemplate(filepath, pagesize=landscape(A4))
-        styles = getSampleStyleSheet()
-        elements = [
-            Paragraph(titulo, styles['Title']),
-            Paragraph(f'Generado: {timezone.now().strftime("%d/%m/%Y %H:%M")}', styles['Normal']),
-            Spacer(1, 12),
-        ]
-        data = [headers] + [[str(cell) for cell in row] for row in rows]
-        if len(data) == 1:
-            data.append(['Sin registros para los filtros seleccionados.'] + [''] * (len(headers) - 1))
-
-        table = Table(data, repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1D74F2')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F7FBFF')]),
-        ]))
-        elements.append(table)
-        doc.build(elements)
+    def _generar_pdf(
+        self,
+        titulo: str,
+        headers: List[str],
+        rows: List[List[Any]],
+        filepath: str,
+        filtros: Optional[dict] = None,
+    ) -> None:
+        generar_pdf_formateado(
+            titulo,
+            headers,
+            rows,
+            filepath,
+            subtitulo=build_filtros_subtitulo(filtros),
+        )
 
     def generar(
         self,
@@ -280,6 +289,12 @@ class DjangoReporteAdminRepository(ReporteAdminRepositoryPort):
 
         titulo, headers, rows = self._consultar_datos(tipo, filtros or {})
 
+        filtros_export = dict(filtros or {})
+        if filtros_export.get('categoria_id'):
+            categoria = Categoria.objects.filter(id=filtros_export['categoria_id']).first()
+            if categoria:
+                filtros_export['categoria_nombre'] = categoria.nombre
+
         reporte = ReporteGenerado.objects.create(
             usuario_id=usuario_id,
             tipo_reporte=tipo,
@@ -294,9 +309,9 @@ class DjangoReporteAdminRepository(ReporteAdminRepositoryPort):
         filepath = dest_dir / filename
 
         if fmt == 'pdf':
-            self._generar_pdf(titulo, headers, rows, str(filepath))
+            self._generar_pdf(titulo, headers, rows, str(filepath), filtros_export)
         else:
-            self._generar_excel(titulo, headers, rows, str(filepath))
+            self._generar_excel(titulo, headers, rows, str(filepath), filtros_export)
 
         rel_path = f'reportes/{filename}'
         reporte.archivo_generado = rel_path

@@ -1,19 +1,37 @@
-// Valores POR DEFECTO del portal. Se usan SOLO cuando la API de configuración
-// aún no tiene datos (como ahora, que /api/configuracion/ está vacía).
-// Cuando el administrador define la configuración en el panel, esos valores
-// reemplazan a estos automáticamente, sin tocar el código.
-
 export const CONFIG_DEFAULT = {
   nombreSistema: 'Pelileo',
   eslogan: 'Turismo · GAD Municipal',
-  logoUrl: null, // si es null, se muestra la inicial del nombre
+  logoUrl: null,
   logoSecundarioUrl: null,
   faviconUrl: null,
+  descripcion: 'Promoción turística del cantón San Pedro de Pelileo.',
 
   colores: {
     primario: '#1D9E75',
     primarioOscuro: '#157A5A',
     secundario: '#F9A825',
+    terciario: '#157A5A',
+  },
+
+  tipografia: {
+    fuentePrincipal: 'Inter, sans-serif',
+    fuenteSecundaria: 'Inter, sans-serif',
+    tamanoBase: 16,
+    bordeRadio: 12,
+    modoOscuro: false,
+    sombraGlobal: true,
+  },
+
+  header: {
+    mostrarLogo: true,
+    mostrarMenu: true,
+    mostrarBuscador: false,
+    mostrarRedes: false,
+    textoSuperior: 'Turismo · GAD Municipal',
+    colorFondo: '#ffffff',
+    colorTexto: '#1e293b',
+    altura: 72,
+    sticky: true,
   },
 
   menu: [
@@ -28,8 +46,20 @@ export const CONFIG_DEFAULT = {
   footer: {
     titulo: 'GAD Municipal de Pelileo',
     descripcion: 'Promoción turística del cantón San Pedro de Pelileo, Tungurahua – Ecuador.',
-    contacto: { ciudad: 'Pelileo, Tungurahua', web: 'pelileo.gob.ec' },
+    copyright: 'GAD Municipal de Pelileo',
+    mostrarRedes: true,
+    mostrarContacto: true,
+    mostrarMapa: false,
+    colorFondo: '#1e293b',
+    colorTexto: '#cbd5e1',
+    contacto: {
+      ciudad: 'Pelileo, Tungurahua',
+      web: 'pelileo.gob.ec',
+      email: '',
+      telefono: '',
+      direccion: '',
+    },
   },
 
-  redes: [], // ej: [{ nombre: 'Facebook', url: 'https://...' }]
+  redes: [],
 };

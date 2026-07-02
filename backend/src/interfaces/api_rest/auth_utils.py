@@ -1,7 +1,7 @@
 from functools import wraps
 
 from django.conf import settings
-from django.http import HttpResponseForbidden
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 from src.application.services.jwt_service import JwtService
@@ -64,7 +64,7 @@ def jwt_required(view_func):
     def wrapper(request, *args, **kwargs):
         user = get_user_from_request(request)
         if not user:
-            return HttpResponseForbidden('Usuario no autenticado.')
+            return JsonResponse({'error': 'Usuario no autenticado.'}, status=401)
         request.jwt_user = user
         return view_func(request, *args, **kwargs)
 
@@ -77,10 +77,11 @@ def admin_panel_required(view_func):
     def wrapper(request, *args, **kwargs):
         user = get_user_from_request(request)
         if not user:
-            return HttpResponseForbidden('Usuario no autenticado.')
+            return JsonResponse({'error': 'Usuario no autenticado.'}, status=401)
         if not user_has_panel_access(user):
-            return HttpResponseForbidden(
-                'No tienes permisos para acceder al panel administrativo.'
+            return JsonResponse(
+                {'error': 'No tienes permisos para acceder al panel administrativo.'},
+                status=403,
             )
         request.jwt_user = user
         return view_func(request, *args, **kwargs)
@@ -94,10 +95,11 @@ def administrador_required(view_func):
     def wrapper(request, *args, **kwargs):
         user = get_user_from_request(request)
         if not user:
-            return HttpResponseForbidden('Usuario no autenticado.')
+            return JsonResponse({'error': 'Usuario no autenticado.'}, status=401)
         if not user_is_administrador(user):
-            return HttpResponseForbidden(
-                'Solo el administrador puede acceder a esta sección.'
+            return JsonResponse(
+                {'error': 'Solo el administrador puede acceder a esta sección.'},
+                status=403,
             )
         request.jwt_user = user
         return view_func(request, *args, **kwargs)
