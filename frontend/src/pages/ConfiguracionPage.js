@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest, getApiBase, getAuthHeaders } from '../services/apiClient';
 import { applySiteFavicon } from '../services/configuracion.service';
+import { useRefetchConfiguracion } from '../context/ConfiguracionContext';
 import MenuNavegacionTab from '../components/configuracion/MenuNavegacionTab';
 import { useToast } from '../context/ToastContext';
 import { useErrorToast } from '../hooks/useErrorToast';
@@ -36,6 +37,7 @@ function emptyRed() {
 
 function ConfiguracionPage() {
   const toast = useToast();
+  const refetchConfiguracion = useRefetchConfiguracion();
   const [tabActiva, setTabActiva] = useState('gad');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,6 +114,7 @@ function ConfiguracionPage() {
         body: JSON.stringify(payload),
       });
       aplicarDatos(data);
+      await refetchConfiguracion();
       toast.success(mensaje);
     } catch (err) {
       toast.error(err.message || 'Error al guardar.');
@@ -151,6 +154,7 @@ function ConfiguracionPage() {
       if (tipo === 'favicon' && imageUrl) {
         applySiteFavicon(imageUrl, { cacheBust: true });
       }
+      await refetchConfiguracion();
       toast.success('Imagen cargada correctamente.');
     } catch (err) {
       toast.error(err.message || 'Error al subir la imagen.');
@@ -357,7 +361,11 @@ function ConfiguracionPage() {
               ))}
               <label>
                 Texto superior
-                <input value={header.texto_superior || ''} onChange={(e) => setHeader((h) => ({ ...h, texto_superior: e.target.value }))} />
+                <input
+                  value={header.texto_superior || ''}
+                  placeholder="Turismo · GAD Municipal"
+                  onChange={(e) => setHeader((h) => ({ ...h, texto_superior: e.target.value }))}
+                />
               </label>
 
               <h4>Footer</h4>
@@ -377,7 +385,11 @@ function ConfiguracionPage() {
               ))}
               <label>
                 Copyright
-                <input value={footer.copyright_texto || ''} onChange={(e) => setFooter((f) => ({ ...f, copyright_texto: e.target.value }))} />
+                <input
+                  value={footer.copyright_texto || ''}
+                  placeholder={`© ${new Date().getFullYear()} GAD Municipal de Pelileo. Todos los derechos reservados.`}
+                  onChange={(e) => setFooter((f) => ({ ...f, copyright_texto: e.target.value }))}
+                />
               </label>
               <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
             </form>

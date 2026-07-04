@@ -12,6 +12,7 @@ from src.domain.catalogos.estados_publicacion import EstadoPublicacion
 from src.domain.eventos.models import Evento
 from src.domain.eventos.rules import EventoRules
 from src.domain.multimedia.models import Multimedia
+from src.domain.shared.media_urls import build_media_url
 
 
 class DjangoEventoAdminRepository(EventoAdminRepositoryPort):
@@ -112,23 +113,31 @@ class DjangoEventoAdminRepository(EventoAdminRepositoryPort):
         offset = (page - 1) * page_size
         items = list(queryset[offset:offset + page_size])
 
+        eventos_ids = [item.id for item in items]
+        multimedia_items = Multimedia.objects.filter(
+            entidad_tipo='evento',
+            entidad_id__in=eventos_ids,
+            tipo='imagen',
+            activo=True,
+        ).order_by('entidad_id', '-principal', 'orden')
+
+        thumbnails: Dict[int, str] = {}
+        for media in multimedia_items:
+            if media.entidad_id not in thumbnails:
+                thumbnails[media.entidad_id] = build_media_url(media.archivo) or ''
+
         results = []
         for item in items:
-            imagen = Multimedia.objects.filter(
-                entidad_tipo='evento',
-                entidad_id=item.id,
-                activo=True,
-            ).order_by('-principal', 'orden').values_list('archivo', flat=True).first()
             results.append({
                 'id': item.id,
                 'nombre': item.nombre,
+                'imagen': thumbnails.get(item.id),
                 'categoria': item.categoria.nombre if item.categoria_id else None,
                 'categoria_id': item.categoria_id,
                 'fecha_inicio': item.fecha_inicio.isoformat() if item.fecha_inicio else None,
                 'fecha_fin': item.fecha_fin.isoformat() if item.fecha_fin else None,
                 'estado_publicacion': item.estado_publicacion.nombre if item.estado_publicacion_id else None,
                 'estado_publicacion_codigo': item.estado_publicacion.codigo if item.estado_publicacion_id else None,
-                'imagen': imagen,
             })
 
         return {
@@ -219,7 +228,7 @@ class DjangoEventoAdminRepository(EventoAdminRepositoryPort):
             'organizador': item.organizador,
             'contacto': item.contacto,
             'estado_publicacion_codigo': item.estado_publicacion.codigo if item.estado_publicacion else 'borrador',
-            'imagen': imagen,
+            'imagen': build_media_url(imagen),
         }
 
     def guardar_completo(self, data: EventoCompleteDTO, usuario_id: int) -> Dict[str, Any]:

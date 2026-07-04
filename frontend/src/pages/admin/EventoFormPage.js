@@ -7,6 +7,8 @@ import { ADMIN_PATHS } from '../../routes/adminPaths';
 import '../../styles/AtractivoForm.css';
 import { useToast } from '../../context/ToastContext';
 import { useErrorToast } from '../../hooks/useErrorToast';
+import { filterDigitsOnly, filterSignedDecimalInput } from '../../utils/formValidation';
+import { useSubmitLock } from '../../hooks/useSubmitLock';
 
 function toDatetimeLocal(iso) {
   if (!iso) return '';
@@ -27,7 +29,7 @@ function EventoFormPage() {
   const { id } = useParams();
   const eventoId = id ? Number(id) : null;
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { isSubmitting, withLock } = useSubmitLock();
   const [error, setError] = useState('');
   const [catalogs, setCatalogs] = useState({ categorias: [], estados: [] });
   const [formData, setFormData] = useState({
@@ -115,42 +117,41 @@ function EventoFormPage() {
   });
 
   const handleSave = async (publish = false) => {
-    setError('');
-    setSaving(true);
-    try {
-      if (!formData.nombre.trim()) {
-        throw new Error('El nombre del evento es obligatorio.');
-      }
-      if (!formData.categoria_id) {
-        throw new Error('Seleccione una categoría.');
-      }
-      validateFechas();
+    await withLock(async () => {
+      setError('');
+      try {
+        if (!formData.nombre.trim()) {
+          throw new Error('El nombre del evento es obligatorio.');
+        }
+        if (!formData.categoria_id) {
+          throw new Error('Seleccione una categoría.');
+        }
+        validateFechas();
 
-      const url = eventoId
-        ? `/api/admin/eventos/${eventoId}/edit/`
-        : '/api/admin/eventos/new/';
-      const result = await apiRequest(url, {
-        method: eventoId ? 'PUT' : 'POST',
-        body: JSON.stringify(buildPayload(publish)),
-      });
+        const url = eventoId
+          ? `/api/admin/eventos/${eventoId}/edit/`
+          : '/api/admin/eventos/new/';
+        const result = await apiRequest(url, {
+          method: eventoId ? 'PUT' : 'POST',
+          body: JSON.stringify(buildPayload(publish)),
+        });
 
-      if (!eventoId && result?.id) {
-        navigate(ADMIN_PATHS.eventoEditar(result.id), {
+        if (!eventoId && result?.id) {
+          navigate(ADMIN_PATHS.eventoEditar(result.id), {
+            replace: true,
+            state: { saved: true, nombre: result.nombre || formData.nombre },
+          });
+          return;
+        }
+
+        navigate(ADMIN_PATHS.eventos, {
           replace: true,
           state: { saved: true, nombre: result.nombre || formData.nombre },
         });
-        return;
+      } catch (err) {
+        setError(err.message || 'Error al guardar el evento.');
       }
-
-      navigate(ADMIN_PATHS.eventos, {
-        replace: true,
-        state: { saved: true, nombre: result.nombre || formData.nombre },
-      });
-    } catch (err) {
-      setError(err.message || 'Error al guardar el evento.');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const estados = catalogs.estados.length ? catalogs.estados : [
@@ -190,6 +191,7 @@ function EventoFormPage() {
           <div className="form-group">
             <label>Nombre *</label>
             <input
+              type="text"
               value={formData.nombre}
               onChange={(e) => setFormData((prev) => ({ ...prev, nombre: e.target.value }))}
             />
@@ -246,6 +248,7 @@ function EventoFormPage() {
           <div className="form-group">
             <label>Organizador</label>
             <input
+              type="text"
               value={formData.organizador}
               onChange={(e) => setFormData((prev) => ({ ...prev, organizador: e.target.value }))}
             />
@@ -254,8 +257,13 @@ function EventoFormPage() {
           <div className="form-group">
             <label>Contacto</label>
             <input
+              type="tel"
+              inputMode="numeric"
               value={formData.contacto}
-              onChange={(e) => setFormData((prev) => ({ ...prev, contacto: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({
+                ...prev,
+                contacto: filterDigitsOnly(e.target.value),
+              }))}
             />
           </div>
 
@@ -271,6 +279,7 @@ function EventoFormPage() {
           <div className="form-group form-full">
             <label>Dirección</label>
             <input
+              type="text"
               value={formData.direccion}
               onChange={(e) => setFormData((prev) => ({ ...prev, direccion: e.target.value }))}
             />
@@ -282,24 +291,24 @@ function EventoFormPage() {
           <div className="form-group">
             <label>Latitud</label>
             <input
-              type="number"
-              step="0.000001"
+              type="text"
+              inputMode="decimal"
               value={formData.latitud ?? ''}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
-                latitud: e.target.value ? Number(e.target.value) : null,
+                latitud: filterSignedDecimalInput(e.target.value) || null,
               }))}
             />
           </div>
           <div className="form-group">
             <label>Longitud</label>
             <input
-              type="number"
-              step="0.000001"
+              type="text"
+              inputMode="decimal"
               value={formData.longitud ?? ''}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
-                longitud: e.target.value ? Number(e.target.value) : null,
+                longitud: filterSignedDecimalInput(e.target.value) || null,
               }))}
             />
           </div>
@@ -323,14 +332,14 @@ function EventoFormPage() {
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.eventos)} disabled={saving}>
+        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.eventos)} disabled={isSubmitting}>
           Cancelar
         </button>
-        <button type="button" className="btn-secondary" onClick={() => handleSave(false)} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar'}
+        <button type="button" className="btn-primary" onClick={() => handleSave(false)} disabled={isSubmitting}>
+          {isSubmitting ? 'Guardando…' : 'Guardar Borrador'}
         </button>
-        <button type="button" className="btn-primary" onClick={() => handleSave(true)} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar y publicar'}
+        <button type="button" className="btn-success" onClick={() => handleSave(true)} disabled={isSubmitting}>
+          {isSubmitting ? 'Publicando…' : 'Guardar y Publicar'}
         </button>
       </div>
     </div>

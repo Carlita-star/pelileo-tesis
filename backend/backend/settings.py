@@ -145,6 +145,8 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+# URL pública del backend (sin barra final). En producción: https://api.tudominio.com
+API_PUBLIC_URL = os.getenv('API_PUBLIC_URL', 'http://localhost:8000').rstrip('/')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

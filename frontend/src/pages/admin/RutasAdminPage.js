@@ -7,6 +7,7 @@ import DownloadFichaButton from '../../components/admin/DownloadFichaButton';
 import { useAdminDetail } from '../../hooks/useAdminDetail';
 import { useErrorToast } from '../../hooks/useErrorToast';
 import { useListSearch } from '../../hooks/useListSearch';
+import { urlImagen } from '../../services/media';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -61,12 +62,15 @@ function RutasAdminPage() {
   useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchRutas } });
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta ruta?')) return;
+    if (!window.confirm('¿Eliminar esta ruta? La acción es lógica.')) return;
     try {
+      setLoading(true);
       await apiRequest(`/api/admin/rutas/${id}/`, { method: 'DELETE' });
-      fetchRutas();
+      await fetchRutas();
     } catch (err) {
       setError('Error al eliminar la ruta.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -114,6 +118,7 @@ function RutasAdminPage() {
         <table className="entity-table">
           <thead>
             <tr>
+              <th>Imagen</th>
               <th>Nombre</th>
               <th>Atractivos</th>
               <th>Distancia</th>
@@ -124,12 +129,19 @@ function RutasAdminPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6"><div className="table-spinner"><div className="loader" />Cargando...</div></td></tr>
+              <tr><td colSpan="7"><div className="table-spinner"><div className="loader" />Cargando...</div></td></tr>
             ) : rutas.length === 0 ? (
-              <tr><td colSpan="6"><p className="empty-state">No hay rutas registradas.</p></td></tr>
+              <tr><td colSpan="7"><p className="empty-state">No hay rutas registradas.</p></td></tr>
             ) : (
               rutas.map((item) => (
                 <tr key={item.id}>
+                  <td>
+                    {item.imagen ? (
+                      <img className="thumbnail" src={urlImagen(item.imagen)} alt={item.nombre} />
+                    ) : (
+                      <div className="thumbnail placeholder">No imagen</div>
+                    )}
+                  </td>
                   <td>{item.nombre}</td>
                   <td>{item.total_atractivos ?? 0}</td>
                   <td>{item.distancia_km ?? '---'} km</td>

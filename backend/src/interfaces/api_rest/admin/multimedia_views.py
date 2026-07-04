@@ -1,26 +1,20 @@
 import json
 
-from django.conf import settings
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.views.decorators.http import require_GET, require_http_methods
 
+from src.domain.shared.media_urls import build_media_url
 from src.infrastructure.repositories.django_multimedia_repository import DjangoMultimediaRepository
 from src.interfaces.api_rest.auth_utils import admin_panel_required
 
 
-def _media_url(path: str) -> str:
-    base = settings.MEDIA_URL.rstrip('/')
-    clean = path.lstrip('/')
-    return f'{base}/{clean}'
-
-
-def _serialize_media(item):
+def _serialize_media(item, request=None):
     return {
         'id': item.id,
         'entidad_tipo': item.entidad_tipo,
         'entidad_id': item.entidad_id,
         'archivo': item.archivo,
-        'url': _media_url(item.archivo),
+        'url': build_media_url(item.archivo, request),
         'titulo': item.titulo,
         'principal': item.principal,
         'orden': item.orden,
@@ -41,7 +35,7 @@ def multimedia_list(request):
 
     repo = DjangoMultimediaRepository()
     items = repo.listar_por_entidad(entidad_tipo, entidad_id)
-    return JsonResponse({'results': [_serialize_media(item) for item in items]})
+    return JsonResponse({'results': [_serialize_media(item, request) for item in items]})
 
 
 @require_http_methods(['POST'])
@@ -60,7 +54,7 @@ def multimedia_upload(request):
         item = DjangoMultimediaRepository().guardar_archivo_subido(
             entidad_tipo, entidad_id, uploaded, principal=principal
         )
-        return JsonResponse(_serialize_media(item), status=201)
+        return JsonResponse(_serialize_media(item, request), status=201)
     except ValueError as exc:
         return HttpResponseBadRequest(str(exc))
 

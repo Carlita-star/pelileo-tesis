@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { validateRutaForm } from '../../utils/adminFormSchemas';
 import FormValidationBanner, { FieldError, fieldClass } from '../../components/FormValidationBanner';
 import { filterDecimalInput } from '../../utils/formValidation';
+import { useSubmitLock } from '../../hooks/useSubmitLock';
 import '../../styles/AtractivoForm.css';
 
 function RutaFormPage() {
@@ -20,6 +21,7 @@ function RutaFormPage() {
   const [error, setError] = useState('');
   const [errors, setErrors] = useState({});
   const [galleryCount, setGalleryCount] = useState(0);
+  const { isSubmitting, withLock } = useSubmitLock();
   const [catalogs, setCatalogs] = useState({ parroquias: [], estados: [], atractivos: [] });
   const [formData, setFormData] = useState({
     general: {
@@ -150,48 +152,50 @@ function RutaFormPage() {
   };
 
   const handleSave = async (publish) => {
-    setError('');
+    await withLock(async () => {
+      setError('');
 
-    let prepared;
-    try {
-      prepared = await prepareFormData();
-    } catch (err) {
-      setError(err.message || 'Error al preparar el formulario.');
-      return;
-    }
+      let prepared;
+      try {
+        prepared = await prepareFormData();
+      } catch (err) {
+        setError(err.message || 'Error al preparar el formulario.');
+        return;
+      }
 
-    const validation = validateRutaForm(prepared, {
-      publish,
-      imageCount: galleryCount,
-      entityId,
-    });
-    if (!validation.valid) {
+      const validation = validateRutaForm(prepared, {
+        publish,
+        imageCount: galleryCount,
+        entityId,
+      });
+      if (!validation.valid) {
+        setFormData(prepared);
+        setErrors(validation.errors);
+        setError(validation.banner || validation.message);
+        return;
+      }
+      setErrors({});
       setFormData(prepared);
-      setErrors(validation.errors);
-      setError(validation.banner || validation.message);
-      return;
-    }
-    setErrors({});
-    setFormData(prepared);
 
-    try {
-      const wasNew = !entityId;
-      await saveRuta(prepared, { publish, updateUrl: wasNew });
-      if (publish) {
-        toast.success('Ruta publicada correctamente.');
+      try {
+        const wasNew = !entityId;
+        await saveRuta(prepared, { publish, updateUrl: wasNew });
+        if (publish) {
+          toast.success('Ruta publicada correctamente.');
+          navigate(ADMIN_PATHS.rutas);
+          return;
+        }
+        if (wasNew) {
+          toast.success('Ruta guardada. Ya puede subir imágenes en la galería.');
+          return;
+        }
+        toast.success('Ruta guardada correctamente.');
         navigate(ADMIN_PATHS.rutas);
-        return;
+      } catch (err) {
+        if (err.fieldErrors) setErrors(err.fieldErrors);
+        setError(err.message || 'Error al guardar la ruta.');
       }
-      if (wasNew) {
-        toast.success('Ruta guardada. Ya puede subir imágenes en la galería.');
-        return;
-      }
-      toast.success('Ruta guardada correctamente.');
-      navigate(ADMIN_PATHS.rutas);
-    } catch (err) {
-      if (err.fieldErrors) setErrors(err.fieldErrors);
-      setError(err.message || 'Error al guardar la ruta.');
-    }
+    });
   };
 
   if (loading) {
@@ -220,6 +224,7 @@ function RutaFormPage() {
           <div className="form-group">
             <label>Nombre *</label>
             <input
+              type="text"
               value={formData.general.nombre}
               className={fieldClass(errors['general.nombre'])}
               onChange={(e) => setFormData((prev) => ({
@@ -324,9 +329,15 @@ function RutaFormPage() {
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.rutas)}>Cancelar</button>
-        <button type="button" className="btn-secondary" onClick={() => handleSave(false)}>Guardar</button>
-        <button type="button" className="btn-primary" onClick={() => handleSave(true)}>Guardar y publicar</button>
+        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.rutas)} disabled={isSubmitting}>
+          Cancelar
+        </button>
+        <button type="button" className="btn-primary" onClick={() => handleSave(false)} disabled={isSubmitting}>
+          {isSubmitting ? 'Guardando…' : 'Guardar Borrador'}
+        </button>
+        <button type="button" className="btn-success" onClick={() => handleSave(true)} disabled={isSubmitting}>
+          {isSubmitting ? 'Publicando…' : 'Guardar y Publicar'}
+        </button>
       </div>
     </div>
   );

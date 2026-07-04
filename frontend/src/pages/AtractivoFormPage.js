@@ -9,6 +9,7 @@ import { validateAtractivoForm, getAtractivoErrorTab } from '../utils/adminFormS
 import FormValidationBanner, { FieldError, fieldClass } from '../components/FormValidationBanner';
 import { parseCoordinate } from '../utils/formValidation';
 import { useToast } from '../context/ToastContext';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 import '../styles/AtractivoForm.css';
 
 const AtractivoFormPage = () => {
@@ -20,7 +21,7 @@ const AtractivoFormPage = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(atractivo_id ? true : false);
   const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isSubmitting, withLock } = useSubmitLock();
   
   // Catálogos
   const [catalogs, setCatalogs] = useState({
@@ -317,49 +318,48 @@ const AtractivoFormPage = () => {
   };
 
   const handleSubmit = async (action) => {
-    setError(null);
+    await withLock(async () => {
+      setError(null);
 
-    let preparedFormData;
-    try {
-      preparedFormData = await prepareFormData();
-    } catch (err) {
-      setError(err.message);
-      return;
-    }
+      let preparedFormData;
+      try {
+        preparedFormData = await prepareFormData();
+      } catch (err) {
+        setError(err.message);
+        return;
+      }
 
-    const isPublish = action === 'publish';
+      const isPublish = action === 'publish';
 
-    const validation = validateAtractivoForm(preparedFormData, {
-      publish: isPublish,
-      imageCount: galleryCount,
-      entityId: entityId,
+      const validation = validateAtractivoForm(preparedFormData, {
+        publish: isPublish,
+        imageCount: galleryCount,
+        entityId: entityId,
+      });
+
+      if (!validation.valid) {
+        setFormData(preparedFormData);
+        setErrors(validation.errors);
+        setError(validation.banner || validation.message);
+        setActiveTab(getAtractivoErrorTab(validation.errors));
+        return;
+      }
+
+      setErrors({});
+
+      try {
+        const wasNew = !entityId;
+        setFormData(preparedFormData);
+        await saveAtractivo(preparedFormData, action, { updateUrl: wasNew });
+
+        toast.success(`Atractivo ${action === 'publish' ? 'publicado' : 'guardado'} exitosamente`);
+        if (wasNew) return;
+        navigate(ADMIN_PATHS.atractivos);
+      } catch (err) {
+        if (err.fieldErrors) setErrors(err.fieldErrors);
+        setError(`Error: ${err.message}`);
+      }
     });
-
-    if (!validation.valid) {
-      setFormData(preparedFormData);
-      setErrors(validation.errors);
-      setError(validation.banner || validation.message);
-      setActiveTab(getAtractivoErrorTab(validation.errors));
-      return;
-    }
-
-    setErrors({});
-    setIsSubmitting(true);
-
-    try {
-      const wasNew = !entityId;
-      setFormData(preparedFormData);
-      await saveAtractivo(preparedFormData, action, { updateUrl: wasNew });
-
-      toast.success(`Atractivo ${action === 'publish' ? 'publicado' : 'guardado'} exitosamente`);
-      if (wasNew) return;
-      navigate(ADMIN_PATHS.atractivos);
-    } catch (err) {
-      if (err.fieldErrors) setErrors(err.fieldErrors);
-      setError(`Error: ${err.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   if (loading) {

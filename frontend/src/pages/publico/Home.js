@@ -9,6 +9,7 @@ import CarruselInicio from '../../components/publico/CarruselInicio';
 import GaleriaCarrusel from '../../components/publico/GaleriaCarrusel';
 import TarjetaRuta from '../../components/publico/TarjetaRuta';
 import TarjetaEmprendimiento from '../../components/publico/TarjetaEmprendimiento';
+import SeccionInstitucional from '../../components/publico/SeccionInstitucional';
 
 const INFO_DEFECTO =
   'Pelileo, conocido como el "Cantón Azul" por su tradición textil, se ubica en la provincia ' +
@@ -50,7 +51,8 @@ function Home() {
 
   const titulo = config?.nombre ? `Descubre ${config.nombre}` : 'Descubre Pelileo';
   const eslogan = config?.eslogan || 'Naturaleza, cultura y tradición en el corazón de Tungurahua';
-  const infoTexto = config?.descripcion || config?.historia || INFO_DEFECTO;
+  const infoTexto = config?.descripcion || INFO_DEFECTO;
+  const nombreInstitucional = config?.footer?.titulo || config?.nombre || 'Pelileo';
 
   return (
     <div>
@@ -75,6 +77,13 @@ function Home() {
           </div>
         </div>
       </section>
+
+      <SeccionInstitucional
+        nombre={nombreInstitucional}
+        historia={config?.historia || config?.empresa?.historia}
+        mision={config?.mision || config?.empresa?.mision}
+        vision={config?.vision || config?.empresa?.vision}
+      />
 
       {/* 3. ATRACTIVOS DESTACADOS */}
       {atractivos.length > 0 && (

@@ -39,13 +39,27 @@ from src.application.dto.atractivo_dto import AtractivoCompleteDTO, AtractivoGen
 from src.infrastructure.repositories.django_dashboard_repository import DjangoDashboardRepository
 from src.infrastructure.repositories.django_atractivo_repository import DjangoAtractivoAdminRepository
 from src.interfaces.api_rest.auth_utils import admin_panel_required, administrador_required
+from src.domain.shared.media_urls import build_media_url
 
-def _imagen_principal(tipo, entidad_id):
-    m = (Multimedia.objects
-         .filter(entidad_tipo=tipo, entidad_id=entidad_id, activo=True)
-         .order_by('-principal', 'orden')
-         .first())
-    return m.archivo if m else None
+
+def _imagen_principal(tipo, entidad_id, request=None):
+    m = (
+        Multimedia.objects
+        .filter(entidad_tipo=tipo, entidad_id=entidad_id, activo=True)
+        .order_by('-principal', 'orden')
+        .first()
+    )
+    return build_media_url(m.archivo, request) if m else None
+
+
+def _serialize_multimedia_item(media, request=None):
+    return {
+        'archivo': media.archivo,
+        'url': build_media_url(media.archivo, request),
+        'titulo': media.titulo,
+        'tipo': media.tipo,
+        'principal': media.principal,
+    }
 
 
 def _filtro_publicado():
@@ -80,7 +94,7 @@ def atractivos_list(request):
     atractivos = (
         Atractivo.objects.filter(**_filtro_publicado())
         .select_related('categoria', 'parroquia')
-        .order_by('-destacado', '-visitas')[:20]
+        .order_by('-destacado', '-creado_en', '-visitas')
     )
 
     data = [
@@ -107,7 +121,7 @@ def atractivos_list(request):
 def rutas_list(request):
     rutas = (
         Ruta.objects.filter(**_filtro_publicado())
-        .order_by('-destacado', '-creado_en')[:20]
+        .order_by('-destacado', '-creado_en')
     )
 
     data = [
@@ -134,7 +148,7 @@ def emprendimientos_list(request):
     emprendimientos = (
         Emprendimiento.objects.filter(**_filtro_publicado())
         .select_related('categoria', 'parroquia', 'estado_publicacion')
-        .order_by('-destacado', '-visitas')[:20]
+        .order_by('-destacado', '-creado_en', '-visitas')
     )
 
     data = [
@@ -645,7 +659,7 @@ def atractivos_detail(request, slug):
 
     # Galería: tabla multimedia (polimórfica). La principal va primero.
     multimedia = [
-        {'archivo': m.archivo, 'titulo': m.titulo, 'tipo': m.tipo, 'principal': m.principal}
+        _serialize_multimedia_item(m, request)
         for m in Multimedia.objects
             .filter(entidad_tipo='atractivo', entidad_id=a.id, activo=True)
             .order_by('-principal', 'orden')
@@ -751,7 +765,7 @@ def rutas_detail(request, ruta_id):
     ]
 
     multimedia = [
-        {'archivo': m.archivo, 'titulo': m.titulo, 'principal': m.principal}
+        _serialize_multimedia_item(m, request)
         for m in Multimedia.objects.filter(entidad_tipo='ruta', entidad_id=r.id, activo=True).order_by('-principal', 'orden')
     ]
 
@@ -805,7 +819,7 @@ def emprendimientos_detail(request, emp_id):
     Emprendimiento.objects.filter(pk=e.pk).update(visitas=F('visitas') + 1)
 
     multimedia = [
-        {'archivo': m.archivo, 'titulo': m.titulo, 'principal': m.principal}
+        _serialize_multimedia_item(m, request)
         for m in Multimedia.objects.filter(entidad_tipo='emprendimiento', entidad_id=e.id, activo=True).order_by('-principal', 'orden')
     ]
 

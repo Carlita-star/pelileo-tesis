@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
+import { urlImagen } from '../../services/media';
 
 // Tarjeta reutilizable de un atractivo (se usa en P-02 y luego en el Home).
 function TarjetaAtractivo({ atractivo }) {
   const { nombre, categoria, parroquia, descripcion, slug, id } = atractivo;
-  const imagen = atractivo.imagen_principal || atractivo.imagen || atractivo.foto || null;
+  const imagen = urlImagen(atractivo.imagen_principal || atractivo.imagen || atractivo.foto);
   const destino = `/atractivos/${slug ?? id}`;
 
   return (

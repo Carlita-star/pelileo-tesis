@@ -5,6 +5,7 @@ import { ADMIN_PATHS } from '../routes/adminPaths';
 import { useToast } from '../context/ToastContext';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { useListSearch } from '../hooks/useListSearch';
+import { urlImagen } from '../services/media';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -88,12 +89,15 @@ function EventosPage() {
   useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchData } });
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este evento?')) return;
+    if (!window.confirm('¿Eliminar este evento? La acción es lógica.')) return;
     try {
+      setLoading(true);
       await apiRequest(`/api/admin/eventos/${id}/`, { method: 'DELETE' });
-      fetchData();
+      await fetchData();
     } catch (err) {
       setError(err.message || 'Error al eliminar el evento.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -150,6 +154,7 @@ function EventosPage() {
         <table className="entity-table">
           <thead>
             <tr>
+              <th>Imagen</th>
               <th>Nombre</th>
               <th>Categoría</th>
               <th>Fecha inicio</th>
@@ -161,7 +166,7 @@ function EventosPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6">
+                <td colSpan="7">
                   <div className="table-spinner">
                     <span className="loader" />
                     Cargando eventos…
@@ -170,13 +175,20 @@ function EventosPage() {
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan="6">
+                <td colSpan="7">
                   <p className="empty-state">{error ? '—' : mensajeVacio}</p>
                 </td>
               </tr>
             ) : (
               items.map((item) => (
                 <tr key={item.id}>
+                  <td>
+                    {item.imagen ? (
+                      <img className="thumbnail" src={urlImagen(item.imagen)} alt={item.nombre} />
+                    ) : (
+                      <div className="thumbnail placeholder">No imagen</div>
+                    )}
+                  </td>
                   <td>{item.nombre}</td>
                   <td>{item.categoria || '---'}</td>
                   <td>{formatFecha(item.fecha_inicio)}</td>
@@ -187,33 +199,35 @@ function EventosPage() {
                     </span>
                   </td>
                   <td className="actions-cell">
+                    <div className="actions-cell-group">
                     <button
                       type="button"
                       className="action-btn"
+                      onClick={() => navigate(ADMIN_PATHS.eventoEditar(item.id))}
                       title="Editar"
                       aria-label="Editar"
-                      onClick={() => navigate(ADMIN_PATHS.eventoEditar(item.id))}
                     >
-                      Editar
+                      ✏️
                     </button>
                     <button
                       type="button"
                       className="action-btn"
-                      title="Publicar / despublicar"
-                      aria-label="Cambiar estado"
                       onClick={() => handleToggleEstado(item)}
+                      title="Cambiar estado"
+                      aria-label="Cambiar estado"
                     >
-                      Estado
+                      🔁
                     </button>
                     <button
                       type="button"
                       className="action-btn"
+                      onClick={() => handleDelete(item.id)}
                       title="Eliminar"
                       aria-label="Eliminar"
-                      onClick={() => handleDelete(item.id)}
                     >
-                      Eliminar
+                      🗑️
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))

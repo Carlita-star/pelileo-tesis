@@ -7,6 +7,7 @@ import DownloadFichaButton from '../components/admin/DownloadFichaButton';
 import { useAdminDetail } from '../hooks/useAdminDetail';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { useListSearch } from '../hooks/useListSearch';
+import { urlImagen } from '../services/media';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -120,11 +121,9 @@ function AtractivosPage() {
             Tabla administrativa con todos los atractivos, filtros y acciones rápidas.
           </p>
         </div>
-        <div className="header-actions">
-          <button className="primary-button" type="button" onClick={handleNuevoAtractivo}>
-            Nuevo atractivo
-          </button>
-        </div>
+        <button className="primary-button" type="button" onClick={handleNuevoAtractivo}>
+          Nuevo atractivo
+        </button>
       </div>
 
       <div className="filter-bar">
@@ -215,7 +214,7 @@ function AtractivosPage() {
                 <tr key={item.id}>
                   <td>
                     {item.imagen ? (
-                      <img className="thumbnail" src={item.imagen} alt={item.nombre} />
+                      <img className="thumbnail" src={urlImagen(item.imagen)} alt={item.nombre} />
                     ) : (
                       <div className="thumbnail placeholder">No imagen</div>
                     )}

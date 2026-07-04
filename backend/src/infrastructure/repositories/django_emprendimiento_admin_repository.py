@@ -17,6 +17,8 @@ from src.domain.emprendimientos.models import (
     EmprendimientoRelacion,
     EmprendimientoServicio,
 )
+from src.domain.multimedia.models import Multimedia
+from src.domain.shared.media_urls import build_media_url
 
 
 class DjangoEmprendimientoAdminRepository(EmprendimientoAdminRepositoryPort):
@@ -51,7 +53,7 @@ class DjangoEmprendimientoAdminRepository(EmprendimientoAdminRepositoryPort):
         page: int = 1,
         page_size: int = 20,
     ) -> Dict[str, Any]:
-        queryset = Emprendimiento.objects.select_related(
+        queryset = Emprendimiento.objects.filter(activo=True).select_related(
             'parroquia', 'estado_publicacion', 'categoria'
         ).order_by('-creado_en')
 
@@ -68,11 +70,25 @@ class DjangoEmprendimientoAdminRepository(EmprendimientoAdminRepositoryPort):
         offset = (page - 1) * page_size
         items = list(queryset[offset:offset + page_size])
 
+        emprendimientos_ids = [item.id for item in items]
+        multimedia_items = Multimedia.objects.filter(
+            entidad_tipo='emprendimiento',
+            entidad_id__in=emprendimientos_ids,
+            tipo='imagen',
+            activo=True,
+        ).order_by('entidad_id', '-principal', 'orden')
+
+        thumbnails: Dict[int, str] = {}
+        for media in multimedia_items:
+            if media.entidad_id not in thumbnails:
+                thumbnails[media.entidad_id] = build_media_url(media.archivo) or ''
+
         results = []
         for item in items:
             results.append({
                 'id': item.id,
                 'nombre': item.nombre,
+                'imagen': thumbnails.get(item.id),
                 'parroquia': item.parroquia.nombre if item.parroquia_id else None,
                 'telefono': item.telefono,
                 'estado_publicacion': item.estado_publicacion.nombre if item.estado_publicacion_id else None,
