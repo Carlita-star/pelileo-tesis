@@ -9,11 +9,12 @@ from django.db.models import Q
 from src.application.dto.usuario_admin_dto import UsuarioAdminDTO
 from src.application.ports.usuario_admin_repository import UsuarioAdminRepositoryPort
 from src.domain.auditorias.models import Auditoria
-from src.domain.roles.models import Rol, UsuarioRol
+from src.domain.roles.helpers import ROLES_PANEL, ROL_VISITANTE, sincronizar_roles_usuario
+from src.domain.roles.models import Rol
 from src.domain.usuarios.models import Usuario
 from src.domain.usuarios.rules import UsuarioRules
 
-ROLES_PANEL = ('administrador', 'gestor_turistico')
+ROLES_FORMULARIO = (*ROLES_PANEL, ROL_VISITANTE)
 
 
 class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
@@ -94,20 +95,12 @@ class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
         }
 
     def _validar_roles(self, rol_ids: List[int]) -> List[int]:
-        if not rol_ids:
-            raise ValueError('Debe asignar al menos un rol.')
-        roles = list(
-            Rol.objects.filter(id__in=rol_ids, nombre__in=ROLES_PANEL).values_list('id', flat=True)
-        )
-        if len(roles) != len(set(rol_ids)):
-            raise ValueError('Uno o más roles seleccionados no son válidos para el panel.')
-        return list(set(rol_ids))
+        """Solo valida roles de panel enviados desde el formulario admin."""
+        from src.domain.roles.helpers import validar_roles_panel
+        return validar_roles_panel(rol_ids)
 
     def _sincronizar_roles(self, usuario: Usuario, rol_ids: List[int]) -> None:
-        rol_ids_validos = self._validar_roles(rol_ids)
-        UsuarioRol.objects.filter(usuario=usuario).exclude(rol_id__in=rol_ids_validos).delete()
-        for rol_id in rol_ids_validos:
-            UsuarioRol.objects.get_or_create(usuario=usuario, rol_id=rol_id)
+        sincronizar_roles_usuario(usuario, rol_ids)
 
     def listar_para_admin(
         self,
@@ -147,7 +140,7 @@ class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
         items = list(queryset[offset:offset + page_size])
 
         roles = list(
-            Rol.objects.filter(nombre__in=ROLES_PANEL).order_by('nombre').values('id', 'nombre')
+            Rol.objects.filter(nombre__in=ROLES_FORMULARIO).order_by('nombre').values('id', 'nombre')
         )
 
         return {
@@ -161,7 +154,7 @@ class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
 
     def obtener_datos_iniciales(self) -> Dict[str, Any]:
         roles = list(
-            Rol.objects.filter(nombre__in=ROLES_PANEL).order_by('nombre').values('id', 'nombre', 'descripcion')
+            Rol.objects.filter(nombre__in=ROLES_FORMULARIO).order_by('nombre').values('id', 'nombre', 'descripcion')
         )
         return {'roles': roles}
 
@@ -183,7 +176,10 @@ class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
             'foto_perfil': usuario.foto_perfil,
             'foto_url': self._media_url(usuario.foto_perfil),
             'iniciales': self._iniciales(usuario),
-            'rol_ids': [ur.rol_id for ur in usuario.usuario_roles.all()],
+            'rol_ids': [
+                ur.rol_id for ur in usuario.usuario_roles.select_related('rol').all()
+                if ur.rol.nombre in ROLES_PANEL
+            ],
             'activo': usuario.activo,
         }
 

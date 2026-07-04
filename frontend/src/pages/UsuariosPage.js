@@ -9,6 +9,7 @@ import { useListSearch } from '../hooks/useListSearch';
 const ROL_LABELS = {
   administrador: 'Administrador',
   gestor_turistico: 'Gestor turístico',
+  visitante: 'Visitante',
 };
 
 function formatRol(nombre) {

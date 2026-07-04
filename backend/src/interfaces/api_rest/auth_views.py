@@ -14,7 +14,7 @@ from src.application.validators.admin_forms import validar_registro_usuario
 from src.domain.shared.field_validation import FormValidationError
 from src.infrastructure.repositories.django_usuario_repository import DjangoUsuarioRepository
 from src.interfaces.api_rest.auth_utils import user_has_panel_access
-from src.domain.roles.models import Rol, UsuarioRol
+from src.domain.roles.helpers import asegurar_rol_visitante
 from src.domain.usuarios.models import Usuario
 
 
@@ -42,11 +42,7 @@ def register(request):
         usuario.set_password(data['password'])
         usuario.save()
 
-        visitante, _ = Rol.objects.get_or_create(
-            nombre='visitante',
-            defaults={'descripcion': 'Usuario visitante del portal'},
-        )
-        UsuarioRol.objects.get_or_create(usuario=usuario, rol=visitante)
+        asegurar_rol_visitante(usuario)
 
         return JsonResponse(
             {

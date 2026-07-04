@@ -8,7 +8,10 @@ import { useErrorToast } from '../../hooks/useErrorToast';
 const ROL_LABELS = {
   administrador: 'Administrador',
   gestor_turistico: 'Gestor turístico',
+  visitante: 'Visitante',
 };
+
+const ROLES_PANEL = ['administrador', 'gestor_turistico'];
 
 function formatRol(nombre) {
   return ROL_LABELS[nombre] || nombre;
@@ -124,10 +127,6 @@ function UsuarioFormPage() {
       setError('Complete los campos obligatorios.');
       return;
     }
-    if (!form.rol_ids.length) {
-      setError('Seleccione al menos un rol.');
-      return;
-    }
     if (!isEdit) {
       if (!form.password) {
         setError('La contraseña es obligatoria al crear un usuario.');
@@ -200,7 +199,7 @@ function UsuarioFormPage() {
           <p className="section-description">
             {isEdit
               ? 'Actualice los datos del usuario. Para cambiar la contraseña use el flujo de recuperación.'
-              : 'Registre un nuevo usuario administrativo del panel.'}
+              : 'Registre un usuario del portal. Se asignará automáticamente el rol visitante.'}
           </p>
         </div>
         <button type="button" className="secondary-button" onClick={() => navigate(ADMIN_PATHS.usuarios)}>
@@ -300,18 +299,29 @@ function UsuarioFormPage() {
         )}
 
         <fieldset className="roles-fieldset">
-          <legend>Roles asignados *</legend>
+          <legend>Roles asignados</legend>
+          <p className="section-note">
+            Todos los usuarios tienen el rol <strong>Visitante</strong> del portal turístico.
+            Marque roles adicionales solo si debe acceder al panel administrativo.
+          </p>
           <div className="roles-checkboxes">
-            {roles.map((rol) => (
-              <label key={rol.id} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={form.rol_ids.includes(rol.id)}
-                  onChange={() => toggleRol(rol.id)}
-                />
-                {formatRol(rol.nombre)}
-              </label>
-            ))}
+            <label className="checkbox-label">
+              <input type="checkbox" checked disabled readOnly />
+              {formatRol('visitante')}
+              <span className="section-note"> (automático)</span>
+            </label>
+            {roles
+              .filter((rol) => ROLES_PANEL.includes(rol.nombre))
+              .map((rol) => (
+                <label key={rol.id} className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={form.rol_ids.includes(rol.id)}
+                    onChange={() => toggleRol(rol.id)}
+                  />
+                  {formatRol(rol.nombre)}
+                </label>
+              ))}
           </div>
         </fieldset>
 
