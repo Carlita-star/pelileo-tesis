@@ -124,6 +124,8 @@
 .form-group input[type="email"],
 .form-group input[type="tel"],
 .form-group input[type="number"],
+.form-group input[type="datetime-local"],
+.form-group input[type="date"],
 .form-group select,
 .form-group textarea {
   padding: 10px 12px;
@@ -132,12 +134,17 @@
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.3s;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
 }
 
 .form-group input[type="text"]:focus,
 .form-group input[type="email"]:focus,
 .form-group input[type="tel"]:focus,
 .form-group input[type="number"]:focus,
+.form-group input[type="datetime-local"]:focus,
+.form-group input[type="date"]:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
@@ -147,7 +154,9 @@
 
 .form-group input.input-error,
 .form-group select.input-error,
-.form-group textarea.input-error {
+.form-group textarea.input-error,
+.form-group input[type="datetime-local"].input-error,
+.form-group input[type="date"].input-error {
   border-color: #dc2626;
 }
 

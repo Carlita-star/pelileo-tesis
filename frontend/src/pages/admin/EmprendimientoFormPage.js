@@ -9,6 +9,7 @@ import { useToast } from '../../context/ToastContext';
 import { validateEmprendimientoForm } from '../../utils/adminFormSchemas';
 import FormValidationBanner, { FieldError, fieldClass } from '../../components/FormValidationBanner';
 import { filterSignedDecimalInput, filterDigitsOnly } from '../../utils/formValidation';
+import { useSubmitLock } from '../../hooks/useSubmitLock';
 import '../../styles/AtractivoForm.css';
 
 function EmprendimientoFormPage() {
@@ -21,6 +22,7 @@ function EmprendimientoFormPage() {
   const [error, setError] = useState('');
   const [errors, setErrors] = useState({});
   const [galleryCount, setGalleryCount] = useState(0);
+  const { isSubmitting, withLock } = useSubmitLock();
   const [catalogs, setCatalogs] = useState({ parroquias: [], categorias: [], servicios: [] });
   const [formData, setFormData] = useState({
     general: {
@@ -140,48 +142,50 @@ function EmprendimientoFormPage() {
   };
 
   const handleSave = async (publish) => {
-    setError('');
+    await withLock(async () => {
+      setError('');
 
-    let prepared;
-    try {
-      prepared = await prepareFormData();
-    } catch (err) {
-      setError(err.message || 'Error al preparar el formulario.');
-      return;
-    }
+      let prepared;
+      try {
+        prepared = await prepareFormData();
+      } catch (err) {
+        setError(err.message || 'Error al preparar el formulario.');
+        return;
+      }
 
-    const validation = validateEmprendimientoForm(prepared, {
-      publish,
-      imageCount: galleryCount,
-      entityId,
-    });
-    if (!validation.valid) {
+      const validation = validateEmprendimientoForm(prepared, {
+        publish,
+        imageCount: galleryCount,
+        entityId,
+      });
+      if (!validation.valid) {
+        setFormData(prepared);
+        setErrors(validation.errors);
+        setError(validation.banner || validation.message);
+        return;
+      }
+      setErrors({});
       setFormData(prepared);
-      setErrors(validation.errors);
-      setError(validation.banner || validation.message);
-      return;
-    }
-    setErrors({});
-    setFormData(prepared);
 
-    try {
-      const wasNew = !entityId;
-      await saveEmprendimiento(prepared, { publish, updateUrl: wasNew });
-      if (publish) {
-        toast.success('Emprendimiento publicado correctamente.');
+      try {
+        const wasNew = !entityId;
+        await saveEmprendimiento(prepared, { publish, updateUrl: wasNew });
+        if (publish) {
+          toast.success('Emprendimiento publicado correctamente.');
+          navigate(ADMIN_PATHS.emprendimientos);
+          return;
+        }
+        if (wasNew) {
+          toast.success('Emprendimiento guardado. Ya puede subir imágenes en la galería.');
+          return;
+        }
+        toast.success('Emprendimiento guardado correctamente.');
         navigate(ADMIN_PATHS.emprendimientos);
-        return;
+      } catch (err) {
+        if (err.fieldErrors) setErrors(err.fieldErrors);
+        setError(err.message || 'Error al guardar el emprendimiento.');
       }
-      if (wasNew) {
-        toast.success('Emprendimiento guardado. Ya puede subir imágenes en la galería.');
-        return;
-      }
-      toast.success('Emprendimiento guardado correctamente.');
-      navigate(ADMIN_PATHS.emprendimientos);
-    } catch (err) {
-      if (err.fieldErrors) setErrors(err.fieldErrors);
-      setError(err.message || 'Error al guardar el emprendimiento.');
-    }
+    });
   };
 
   if (loading) {
@@ -210,6 +214,7 @@ function EmprendimientoFormPage() {
           <div className="form-group">
             <label>Nombre *</label>
             <input
+              type="text"
               value={formData.general.nombre}
               className={fieldClass(errors['general.nombre'])}
               onChange={(e) => setFormData((prev) => ({
@@ -257,6 +262,7 @@ function EmprendimientoFormPage() {
           <div className="form-group">
             <label>Teléfono</label>
             <input
+              type="tel"
               value={formData.general.telefono || ''}
               className={fieldClass(errors['general.telefono'])}
               onChange={(e) => setFormData((prev) => ({
@@ -291,9 +297,15 @@ function EmprendimientoFormPage() {
           </div>
           <div className="form-group form-full">
             <label>Dirección</label>
-            <input value={formData.general.direccion || ''} onChange={(e) => setFormData((prev) => ({
+            <input
+              type="text"
+              value={formData.general.direccion || ''}
+              className={fieldClass(errors['general.direccion'])}
+              onChange={(e) => setFormData((prev) => ({
               ...prev, general: { ...prev.general, direccion: e.target.value },
-            }))} />
+            }))}
+            />
+            <FieldError error={errors['general.direccion']} />
           </div>
         </div>
 
@@ -367,9 +379,15 @@ function EmprendimientoFormPage() {
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.emprendimientos)}>Cancelar</button>
-        <button type="button" className="btn-secondary" onClick={() => handleSave(false)}>Guardar</button>
-        <button type="button" className="btn-primary" onClick={() => handleSave(true)}>Guardar y publicar</button>
+        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.emprendimientos)} disabled={isSubmitting}>
+          Cancelar
+        </button>
+        <button type="button" className="btn-primary" onClick={() => handleSave(false)} disabled={isSubmitting}>
+          {isSubmitting ? 'Guardando…' : 'Guardar Borrador'}
+        </button>
+        <button type="button" className="btn-success" onClick={() => handleSave(true)} disabled={isSubmitting}>
+          {isSubmitting ? 'Publicando…' : 'Guardar y Publicar'}
+        </button>
       </div>
     </div>
   );

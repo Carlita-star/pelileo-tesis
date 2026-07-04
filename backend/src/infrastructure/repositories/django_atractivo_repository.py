@@ -16,6 +16,7 @@ from src.domain.catalogos.servicios import Servicio
 from src.domain.catalogos.actividades import Actividad
 from src.domain.multimedia.models import Multimedia
 from src.domain.auditorias.models import Auditoria
+from src.domain.shared.media_urls import build_media_url
 
 
 
@@ -27,7 +28,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         parroquia_id: Optional[int] = None,
         estado_codigo: Optional[str] = None,
     ):
-        queryset = Atractivo.objects.select_related('categoria', 'parroquia', 'estado_publicacion')
+        queryset = Atractivo.objects.filter(activo=True).select_related('categoria', 'parroquia', 'estado_publicacion')
 
         if search:
             queryset = queryset.filter(nombre__icontains=search.strip())
@@ -70,7 +71,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         thumbnails: Dict[int, str] = {}
         for media in multimedia_items:
             if media.entidad_id not in thumbnails:
-                thumbnails[media.entidad_id] = media.archivo or ''
+                thumbnails[media.entidad_id] = build_media_url(media.archivo) or ''
 
         data = []
         for atractivo in items:
@@ -127,7 +128,8 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
             return False
 
         atractivo.estado_publicacion = estado
-        atractivo.save(update_fields=['estado_publicacion'])
+        atractivo.activo = True
+        atractivo.save(update_fields=['estado_publicacion', 'activo'])
         return True
 
     def obtener_para_edicion(self, atractivo_id: int) -> Optional[Dict[str, Any]]:
@@ -298,6 +300,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         atractivo.longitud = data.ubicacion.longitud
         atractivo.altitud = data.ubicacion.altitud
         atractivo.estado_publicacion = estado
+        atractivo.activo = True
         atractivo.actualizado_en = timezone.now()
 
         atractivo.save()

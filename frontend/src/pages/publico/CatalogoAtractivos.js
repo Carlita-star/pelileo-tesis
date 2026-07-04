@@ -93,7 +93,7 @@ function CatalogoAtractivos() {
 
       {cargando && (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (<div key={i} className="h-72 animate-pulse rounded-2xl bg-slate-100" />))}
+          {[...Array(6)].map((_, i) => (<div key={i} className="h-[26rem] animate-pulse rounded-[1.75rem] bg-slate-100" />))}
         </div>
       )}
 

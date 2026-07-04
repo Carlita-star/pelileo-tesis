@@ -11,6 +11,8 @@ from src.domain.auditorias.models import Auditoria
 from src.domain.catalogos.estados_publicacion import EstadoPublicacion
 from src.domain.catalogos.parroquias import Parroquia
 from src.domain.rutas.models import Ruta, RutaAtractivo
+from src.domain.multimedia.models import Multimedia
+from src.domain.shared.media_urls import build_media_url
 
 
 class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
@@ -34,7 +36,8 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
         page_size: int = 20,
     ) -> Dict[str, Any]:
         queryset = (
-            Ruta.objects.select_related('parroquia', 'estado_publicacion')
+            Ruta.objects.filter(activo=True)
+            .select_related('parroquia', 'estado_publicacion')
             .annotate(total_atractivos=Count('atractivos', filter=Q(atractivos__activo=True)))
             .order_by('-creado_en')
         )
@@ -50,11 +53,25 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
         offset = (page - 1) * page_size
         items = list(queryset[offset:offset + page_size])
 
+        rutas_ids = [item.id for item in items]
+        multimedia_items = Multimedia.objects.filter(
+            entidad_tipo='ruta',
+            entidad_id__in=rutas_ids,
+            tipo='imagen',
+            activo=True,
+        ).order_by('entidad_id', '-principal', 'orden')
+
+        thumbnails: Dict[int, str] = {}
+        for media in multimedia_items:
+            if media.entidad_id not in thumbnails:
+                thumbnails[media.entidad_id] = build_media_url(media.archivo) or ''
+
         results = []
         for ruta in items:
             results.append({
                 'id': ruta.id,
                 'nombre': ruta.nombre,
+                'imagen': thumbnails.get(ruta.id),
                 'total_atractivos': ruta.total_atractivos,
                 'distancia_km': float(ruta.distancia_km) if ruta.distancia_km else None,
                 'dificultad': ruta.dificultad,

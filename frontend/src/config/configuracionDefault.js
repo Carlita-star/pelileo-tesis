@@ -18,7 +18,6 @@ export const CONFIG_DEFAULT = {
     fuenteSecundaria: 'Inter, sans-serif',
     tamanoBase: 16,
     bordeRadio: 12,
-    modoOscuro: false,
     sombraGlobal: true,
   },
 
@@ -27,7 +26,7 @@ export const CONFIG_DEFAULT = {
     mostrarMenu: true,
     mostrarBuscador: false,
     mostrarRedes: false,
-    textoSuperior: 'Turismo · GAD Municipal',
+    textoSuperior: '',
     colorFondo: '#ffffff',
     colorTexto: '#1e293b',
     altura: 72,

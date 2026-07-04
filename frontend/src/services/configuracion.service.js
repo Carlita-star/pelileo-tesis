@@ -19,6 +19,77 @@ function faviconMimeType(url) {
   return 'image/x-icon';
 }
 
+/** Aplica colores y fuentes institucionales al documento. */
+export function applyThemeVariables(cfg) {
+  if (!cfg) return;
+
+  const raiz = document.documentElement;
+  const colores = cfg.colores || CONFIG_DEFAULT.colores;
+
+  raiz.style.setProperty('--color-primario', colores.primario);
+  raiz.style.setProperty('--color-primario-oscuro', colores.primarioOscuro);
+  raiz.style.setProperty('--color-secundario', colores.secundario);
+  if (colores.terciario) {
+    raiz.style.setProperty('--color-terciario', colores.terciario);
+  }
+  if (cfg.fuente) {
+    raiz.style.setProperty('--fuente-principal', cfg.fuente);
+    document.body.style.fontFamily = cfg.fuente;
+  }
+  if (cfg.tamanoFuente) {
+    raiz.style.setProperty('--tamano-fuente-base', `${cfg.tamanoFuente}px`);
+    document.body.style.fontSize = `${cfg.tamanoFuente}px`;
+  }
+  if (cfg.bordeRadio != null) {
+    raiz.style.setProperty('--borde-radio', `${cfg.bordeRadio}px`);
+  }
+  document.body.classList.remove('modo-oscuro');
+}
+
+function normalizeHeader(headerCfg = {}) {
+  return {
+    mostrarLogo: headerCfg.mostrar_logo !== false,
+    mostrarMenu: headerCfg.mostrar_menu !== false,
+    mostrarBuscador: headerCfg.mostrar_buscador === true,
+    mostrarRedes: headerCfg.mostrar_redes === true,
+    textoSuperior: headerCfg.texto_superior?.trim() || '',
+    sticky: headerCfg.sticky !== false,
+    colorFondo: headerCfg.color_fondo,
+    colorTexto: headerCfg.color_texto,
+    altura: headerCfg.altura_header,
+  };
+}
+
+function normalizeFooter(footerCfg = {}, empresa = {}) {
+  const titulo = empresa.nombre || CONFIG_DEFAULT.footer.titulo;
+  const copyrightPersonalizado = footerCfg.copyright_texto?.trim() || '';
+
+  return {
+    titulo,
+    descripcion: footerCfg.descripcion?.trim()
+      || empresa.descripcion?.trim()
+      || CONFIG_DEFAULT.footer.descripcion,
+    copyright: copyrightPersonalizado,
+    copyrightDefault: `© ${new Date().getFullYear()} ${titulo}. Todos los derechos reservados.`,
+    mostrarRedes: footerCfg.mostrar_redes !== false,
+    mostrarContacto: footerCfg.mostrar_contacto !== false,
+    mostrarMapa: footerCfg.mostrar_mapa !== false,
+    contacto: {
+      ciudad: `${empresa.canton || 'Pelileo'}, ${empresa.provincia || 'Tungurahua'}`,
+      web: (() => {
+        const web = empresa.sitio_web?.trim();
+        if (!web || web.toUpperCase() === 'NINGUNO') {
+          return CONFIG_DEFAULT.footer.contacto.web;
+        }
+        return web;
+      })(),
+      email: empresa.email || '',
+      telefono: empresa.telefono || empresa.celular || '',
+      direccion: empresa.direccion || '',
+    },
+  };
+}
+
 /** Actualiza el icono de la pestaña del navegador con el favicon institucional. */
 export function applySiteFavicon(url, { cacheBust = false } = {}) {
   if (!url) return;
@@ -47,6 +118,7 @@ export function mapConfiguracionApi(data) {
 
   const empresa = data.empresa || {};
   const apariencia = data.apariencia || {};
+  const headerCfg = data.header || {};
   const footerCfg = data.footer || {};
 
   const primario = apariencia.color_primario || data.color_primario || CONFIG_DEFAULT.colores.primario;
@@ -57,9 +129,13 @@ export function mapConfiguracionApi(data) {
     nombre: empresa.nombre || CONFIG_DEFAULT.nombreSistema,
     eslogan: data.eslogan || empresa.eslogan || CONFIG_DEFAULT.eslogan,
     descripcion: empresa.descripcion || CONFIG_DEFAULT.footer?.descripcion,
+    historia: (empresa.historia || data.historia || '').trim(),
+    mision: (empresa.mision || data.mision || '').trim(),
+    vision: (empresa.vision || data.vision || '').trim(),
     logoUrl: mediaUrl(data.logoUrl || empresa.logo_principal_url) || CONFIG_DEFAULT.logoUrl,
     logoSecundarioUrl: mediaUrl(data.logoSecundarioUrl || empresa.logo_secundario_url),
     faviconUrl: mediaUrl(data.faviconUrl || empresa.favicon_url),
+    imagenSeccionInicioUrl: mediaUrl(data.imagenSeccionInicioUrl || empresa.imagen_seccion_inicio_url),
     colores: {
       primario,
       primarioOscuro: secundario || CONFIG_DEFAULT.colores.primarioOscuro,
@@ -68,24 +144,10 @@ export function mapConfiguracionApi(data) {
     },
     fuente: apariencia.fuente_principal || data.fuente_principal,
     tamanoFuente: apariencia.tamano_fuente_base || data.tamano_fuente_base || 16,
-    modoOscuro: apariencia.modo_oscuro ?? data.modo_oscuro ?? false,
     bordeRadio: apariencia.borde_radio ?? data.borde_radio ?? 10,
     menu: data.menu?.length ? data.menu : CONFIG_DEFAULT.menu,
-    footer: {
-      titulo: empresa.nombre || CONFIG_DEFAULT.footer.titulo,
-      descripcion: footerCfg.descripcion || empresa.descripcion || CONFIG_DEFAULT.footer.descripcion,
-      contacto: {
-        ciudad: `${empresa.canton || 'Pelileo'}, ${empresa.provincia || 'Tungurahua'}`,
-        web: empresa.sitio_web || CONFIG_DEFAULT.footer.contacto.web,
-        email: empresa.email,
-        telefono: empresa.telefono,
-      },
-      copyright: footerCfg.copyright_texto,
-      mostrarRedes: footerCfg.mostrar_redes !== false,
-      mostrarContacto: footerCfg.mostrar_contacto !== false,
-      mostrarMapa: footerCfg.mostrar_mapa !== false,
-    },
-    header: data.header || {},
+    header: normalizeHeader(headerCfg),
+    footer: normalizeFooter(footerCfg, empresa),
     redes: data.redes?.length ? data.redes : CONFIG_DEFAULT.redes,
     latitud: empresa.latitud ?? data.latitud,
     longitud: empresa.longitud ?? data.longitud,
@@ -96,7 +158,7 @@ export function mapConfiguracionApi(data) {
 
 export async function obtenerConfiguracion() {
   try {
-    const data = await api.get('/configuracion/');
+    const data = await api.get(`/configuracion/?_=${Date.now()}`);
     return mapConfiguracionApi(data);
   } catch {
     return CONFIG_DEFAULT;

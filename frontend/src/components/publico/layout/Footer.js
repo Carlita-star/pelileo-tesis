@@ -1,10 +1,18 @@
 import { Link } from 'react-router-dom';
 import { useConfiguracion } from '../../../context/ConfiguracionContext';
 import InstitutionalLogoMark from '../../InstitutionalLogoMark';
+import { SocialIconList } from '../SocialIconLink';
 
 function Footer() {
   const config = useConfiguracion();
   const { footer, menu, redes } = config;
+  const menuExplora = menu.filter((e) => {
+    if (e.ruta === '/') return false;
+    if (!footer.mostrarMapa && e.ruta === '/mapa') return false;
+    return true;
+  });
+
+  const copyrightLine = footer.copyright || footer.copyrightDefault;
 
   return (
     <footer className="mt-auto bg-slate-800 text-slate-300">
@@ -16,13 +24,15 @@ function Footer() {
             className="mb-4"
           />
           <h3 className="text-lg font-bold text-white">{footer.titulo}</h3>
-          <p className="mt-2 text-sm text-slate-400">{footer.descripcion}</p>
+          {footer.descripcion && (
+            <p className="mt-2 text-sm text-slate-400">{footer.descripcion}</p>
+          )}
         </div>
 
         <div>
           <h4 className="font-semibold text-white">Explora</h4>
           <ul className="mt-3 space-y-2 text-sm">
-            {menu.filter((e) => e.ruta !== '/').map((e) => (
+            {menuExplora.map((e) => (
               <li key={e.ruta}>
                 <Link to={e.ruta} className="transition hover:text-secundario">{e.etiqueta}</Link>
               </li>
@@ -30,24 +40,38 @@ function Footer() {
           </ul>
         </div>
 
-        <div>
-          <h4 className="font-semibold text-white">Contacto</h4>
-          <p className="mt-3 text-sm text-slate-400">{footer.contacto?.ciudad}</p>
-          <p className="text-sm text-slate-400">{footer.contacto?.web}</p>
-          {redes?.length > 0 && (
-            <div className="mt-3 flex gap-3">
-              {redes.map((r) => (
-                <a key={r.nombre} href={r.url} target="_blank" rel="noreferrer" className="text-sm text-slate-400 transition hover:text-secundario">
-                  {r.nombre}
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
+        {footer.mostrarContacto !== false && (
+          <div>
+            <h4 className="font-semibold text-white">Contacto</h4>
+            {footer.contacto?.ciudad && (
+              <p className="mt-3 text-sm text-slate-400">{footer.contacto.ciudad}</p>
+            )}
+            {footer.contacto?.direccion && (
+              <p className="text-sm text-slate-400">{footer.contacto.direccion}</p>
+            )}
+            {footer.contacto?.telefono && (
+              <p className="text-sm text-slate-400">{footer.contacto.telefono}</p>
+            )}
+            {footer.contacto?.email && (
+              <p className="text-sm text-slate-400">{footer.contacto.email}</p>
+            )}
+            {footer.contacto?.web && (
+              <p className="text-sm text-slate-400">{footer.contacto.web}</p>
+            )}
+            {footer.mostrarRedes !== false && redes?.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Síguenos
+                </p>
+                <SocialIconList redes={redes} size="md" variant="dark" />
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="border-t border-slate-700 py-4 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} {footer.titulo}. Todos los derechos reservados.
+        {copyrightLine}
       </div>
     </footer>
   );

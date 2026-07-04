@@ -7,6 +7,7 @@ import DownloadFichaButton from '../../components/admin/DownloadFichaButton';
 import { useAdminDetail } from '../../hooks/useAdminDetail';
 import { useErrorToast } from '../../hooks/useErrorToast';
 import { useListSearch } from '../../hooks/useListSearch';
+import { urlImagen } from '../../services/media';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -64,12 +65,15 @@ function EmprendimientosAdminPage() {
   useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchData } });
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este emprendimiento?')) return;
+    if (!window.confirm('¿Eliminar este emprendimiento? La acción es lógica.')) return;
     try {
+      setLoading(true);
       await apiRequest(`/api/admin/emprendimientos/${id}/`, { method: 'DELETE' });
-      fetchData();
+      await fetchData();
     } catch (err) {
       setError('Error al eliminar.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -114,6 +118,7 @@ function EmprendimientosAdminPage() {
         <table className="entity-table">
           <thead>
             <tr>
+              <th>Imagen</th>
               <th>Nombre</th>
               <th>Parroquia</th>
               <th>Teléfono</th>
@@ -123,12 +128,19 @@ function EmprendimientosAdminPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="5"><div className="loader" /> Cargando...</td></tr>
+              <tr><td colSpan="6"><div className="loader" /> Cargando...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan="5"><p className="empty-state">No hay emprendimientos.</p></td></tr>
+              <tr><td colSpan="6"><p className="empty-state">No hay emprendimientos.</p></td></tr>
             ) : (
               items.map((item) => (
                 <tr key={item.id}>
+                  <td>
+                    {item.imagen ? (
+                      <img className="thumbnail" src={urlImagen(item.imagen)} alt={item.nombre} />
+                    ) : (
+                      <div className="thumbnail placeholder">No imagen</div>
+                    )}
+                  </td>
                   <td>{item.nombre}</td>
                   <td>{item.parroquia || '---'}</td>
                   <td>{item.telefono || '---'}</td>
