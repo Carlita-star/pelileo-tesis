@@ -98,7 +98,7 @@ function FichaAtractivo() {
 
   const servicios = lista(atractivo, 'servicios', 'atractivo_servicios').map(texto).filter(Boolean);
   const actividades = lista(atractivo, 'actividades', 'atractivo_actividades').map(texto).filter(Boolean);
-  const cercanos = lista(atractivo, 'emprendimientos_cercanos', 'emprendimientos', 'relaciones');
+  const recomendados = lista(atractivo, 'atractivos_recomendados', 'recomendaciones');
 
   const infoRapida = [
     { etiqueta: 'Horario', valor: atractivo.horario ?? detalles.horario },
@@ -224,27 +224,35 @@ function FichaAtractivo() {
         </section>
       )}
 
-      {/* Ubicación */}
-      {(atractivo.latitud != null && atractivo.longitud != null) && (
+      {/* Ubicación, cómo llegar y recomendaciones */}
+      {((atractivo.latitud != null && atractivo.longitud != null) || recomendados.length > 0) && (
         <section className="mt-10">
-          <h2 className="text-xl font-bold text-slate-800">Ubicación</h2>
-          {atractivo.direccion && <p className="mt-1 text-sm text-slate-500">{atractivo.direccion}</p>}
-          <div className="mt-4">
-            <MiniMapa lat={atractivo.latitud} lng={atractivo.longitud} nombre={nombre} />
-            <div className="mt-3">
-              <BotonComoLlegar lat={atractivo.latitud} lng={atractivo.longitud} />
-            </div>
-          </div>
-        </section>
-      )}
+          {(atractivo.latitud != null && atractivo.longitud != null) && (
+            <>
+              <h2 className="text-xl font-bold text-slate-800">Ubicación</h2>
+              {atractivo.direccion && <p className="mt-1 text-sm text-slate-500">{atractivo.direccion}</p>}
+              <div className="mt-4">
+                <MiniMapa lat={atractivo.latitud} lng={atractivo.longitud} nombre={nombre} />
+              </div>
+              <div className="mt-3">
+                <BotonComoLlegar lat={atractivo.latitud} lng={atractivo.longitud} />
+              </div>
+            </>
+          )}
 
-      {/* Emprendimientos cercanos (clicables, con imagen arriba) */}
-      {cercanos.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-xl font-bold text-slate-800">Emprendimientos cercanos</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {cercanos.map((e, i) => <TarjetaCercano key={i} tipo="emprendimiento" item={e} />)}
-          </div>
+          {recomendados.length > 0 && (
+            <div className={atractivo.latitud != null && atractivo.longitud != null ? 'mt-10' : ''}>
+              <h2 className="text-xl font-bold text-slate-800">Más atractivos para descubrir</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Otros lugares turísticos que podrían interesarte.
+              </p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {recomendados.map((item) => (
+                  <TarjetaCercano key={item.id ?? item.slug ?? item.nombre} tipo="atractivo" item={item} />
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 

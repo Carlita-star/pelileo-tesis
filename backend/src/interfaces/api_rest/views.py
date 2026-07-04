@@ -15,15 +15,20 @@ from src.application.services.auditoria_export_service import auditorias_to_csv,
 from src.infrastructure.repositories.django_auditoria_repository import DjangoAuditoriaRepository
 from django.views.decorators.http import require_GET, require_http_methods
 
-from src.domain.atractivos.models import Atractivo
-from src.domain.rutas.models import Ruta
-from src.domain.emprendimientos.models import Emprendimiento, EmprendimientoRelacion
+from src.domain.atractivos.models import Atractivo, AtractivoServicio
+from src.domain.rutas.models import Ruta, RutaAtractivo
+from src.domain.emprendimientos.models import (
+    Emprendimiento,
+    EmprendimientoRelacion,
+    EmprendimientoRedSocial,
+    EmprendimientoServicio,
+)
 from src.domain.usuarios.models import Usuario
 from src.domain.eventos.models import Evento
 from src.domain.auditorias.models import HistorialPublicacion, Auditoria
 from src.domain.reportes.models import ReporteGenerado
 from src.domain.empresa.models import Empresa, Configuracion
-from django.db.models import F
+from django.db.models import F, Q
 from src.domain.multimedia.models import Multimedia
 from src.domain.catalogos.categorias import Categoria
 from src.domain.catalogos.parroquias import Parroquia
@@ -52,6 +57,138 @@ def _imagen_principal(tipo, entidad_id, request=None):
     return build_media_url(m.archivo, request) if m else None
 
 
+def _batch_datos_emprendimientos_lista(emprendimiento_ids, request=None):
+    if not emprendimiento_ids:
+        return {}, {}, {}, {}
+
+    imagenes_map = {eid: [] for eid in emprendimiento_ids}
+    for media in (
+        Multimedia.objects
+        .filter(entidad_tipo='emprendimiento', entidad_id__in=emprendimiento_ids, activo=True)
+        .order_by('entidad_id', '-principal', 'orden')
+    ):
+        urls = imagenes_map.get(media.entidad_id, [])
+        if len(urls) < 2:
+            url = build_media_url(media.archivo, request)
+            if url:
+                urls.append(url)
+                imagenes_map[media.entidad_id] = urls
+
+    servicios_map = {eid: [] for eid in emprendimiento_ids}
+    for item in (
+        EmprendimientoServicio.objects
+        .filter(emprendimiento_id__in=emprendimiento_ids)
+        .select_related('servicio')
+        .order_by('emprendimiento_id', 'id')
+    ):
+        servicios = servicios_map.setdefault(item.emprendimiento_id, [])
+        if len(servicios) < 5:
+            servicios.append({
+                'nombre': item.servicio.nombre,
+                'icono': item.servicio.icono,
+            })
+
+    redes_map = {eid: [] for eid in emprendimiento_ids}
+    for red in EmprendimientoRedSocial.objects.filter(
+        emprendimiento_id__in=emprendimiento_ids,
+        activo=True,
+    ).order_by('emprendimiento_id', 'id'):
+        redes_map.setdefault(red.emprendimiento_id, []).append({
+            'nombre_red': red.nombre_red,
+            'url': red.url,
+        })
+
+    atractivo_map = {}
+    for rel in (
+        EmprendimientoRelacion.objects
+        .filter(
+            emprendimiento_id__in=emprendimiento_ids,
+            atractivo__isnull=False,
+            atractivo__activo=True,
+            atractivo__estado_publicacion__codigo='publicado',
+        )
+        .select_related('atractivo')
+        .order_by('emprendimiento_id', 'id')
+    ):
+        if rel.emprendimiento_id not in atractivo_map:
+            atractivo_map[rel.emprendimiento_id] = rel.atractivo.nombre
+
+    return imagenes_map, servicios_map, redes_map, atractivo_map
+
+
+def _batch_datos_rutas_lista(ruta_ids, request=None):
+    if not ruta_ids:
+        return {}, {}
+
+    paradas_map = {rid: [] for rid in ruta_ids}
+    for parada in (
+        RutaAtractivo.objects
+        .filter(
+            ruta_id__in=ruta_ids,
+            activo=True,
+            atractivo__activo=True,
+            atractivo__estado_publicacion__codigo='publicado',
+        )
+        .select_related('atractivo')
+        .order_by('ruta_id', 'orden_recorrido')
+    ):
+        a = parada.atractivo
+        paradas_map.setdefault(parada.ruta_id, []).append({
+            'orden': parada.orden_recorrido,
+            'nombre': a.nombre,
+            'lat': float(a.latitud) if a.latitud is not None else None,
+            'lng': float(a.longitud) if a.longitud is not None else None,
+            'imagen': _imagen_principal('atractivo', a.id, request),
+        })
+
+    imagenes_map = {rid: [] for rid in ruta_ids}
+    for media in (
+        Multimedia.objects
+        .filter(entidad_tipo='ruta', entidad_id__in=ruta_ids, activo=True)
+        .order_by('entidad_id', '-principal', 'orden')
+    ):
+        urls = imagenes_map.get(media.entidad_id, [])
+        if len(urls) < 3:
+            url = build_media_url(media.archivo, request)
+            if url:
+                urls.append(url)
+                imagenes_map[media.entidad_id] = urls
+
+    for rid, paradas in paradas_map.items():
+        urls = imagenes_map.get(rid, [])
+        if len(urls) >= 3:
+            continue
+        for parada in paradas:
+            if parada.get('imagen') and parada['imagen'] not in urls:
+                urls.append(parada['imagen'])
+            if len(urls) >= 3:
+                break
+        imagenes_map[rid] = urls
+
+    return paradas_map, imagenes_map
+
+
+def _batch_servicios_atractivos_lista(atractivo_ids):
+    if not atractivo_ids:
+        return {}
+
+    servicios_map = {aid: [] for aid in atractivo_ids}
+    for item in (
+        AtractivoServicio.objects
+        .filter(atractivo_id__in=atractivo_ids)
+        .select_related('servicio')
+        .order_by('atractivo_id', 'id')
+    ):
+        servicios = servicios_map.setdefault(item.atractivo_id, [])
+        if len(servicios) < 5:
+            servicios.append({
+                'nombre': item.servicio.nombre,
+                'icono': item.servicio.icono,
+            })
+
+    return servicios_map
+
+
 def _serialize_multimedia_item(media, request=None):
     return {
         'archivo': media.archivo,
@@ -65,6 +202,88 @@ def _serialize_multimedia_item(media, request=None):
 def _filtro_publicado():
     """Solo contenido visible en el portal público."""
     return {'activo': True, 'estado_publicacion__codigo': 'publicado'}
+
+
+def _recomendar_atractivos(atractivo_actual, request=None, limite=6):
+    base = (
+        Atractivo.objects
+        .filter(**_filtro_publicado())
+        .exclude(pk=atractivo_actual.pk)
+        .select_related('categoria', 'parroquia')
+    )
+
+    seleccionados = []
+    vistos = set()
+
+    if atractivo_actual.parroquia_id:
+        for item in base.filter(parroquia_id=atractivo_actual.parroquia_id).order_by('-destacado', '-visitas', 'nombre')[:limite]:
+            seleccionados.append(item)
+            vistos.add(item.pk)
+
+    if len(seleccionados) < limite and atractivo_actual.categoria_id:
+        faltan = limite - len(seleccionados)
+        for item in base.filter(categoria_id=atractivo_actual.categoria_id).exclude(pk__in=vistos).order_by('-destacado', '-visitas', 'nombre')[:faltan]:
+            seleccionados.append(item)
+            vistos.add(item.pk)
+
+    if len(seleccionados) < limite:
+        faltan = limite - len(seleccionados)
+        for item in base.exclude(pk__in=vistos).order_by('-destacado', '-visitas', 'nombre')[:faltan]:
+            seleccionados.append(item)
+
+    return [
+        {
+            'id': item.id,
+            'nombre': item.nombre,
+            'slug': item.slug,
+            'descripcion': item.descripcion,
+            'categoria': item.categoria.nombre if item.categoria_id else None,
+            'parroquia': item.parroquia.nombre if item.parroquia_id else None,
+            'imagen': _imagen_principal('atractivo', item.id, request),
+        }
+        for item in seleccionados
+    ]
+
+
+def _recomendar_emprendimientos(emprendimiento_actual, request=None, limite=6):
+    base = (
+        Emprendimiento.objects
+        .filter(**_filtro_publicado())
+        .exclude(pk=emprendimiento_actual.pk)
+        .select_related('categoria', 'parroquia')
+    )
+
+    seleccionados = []
+    vistos = set()
+
+    if emprendimiento_actual.parroquia_id:
+        for item in base.filter(parroquia_id=emprendimiento_actual.parroquia_id).order_by('-destacado', '-visitas', 'nombre')[:limite]:
+            seleccionados.append(item)
+            vistos.add(item.pk)
+
+    if len(seleccionados) < limite and emprendimiento_actual.categoria_id:
+        faltan = limite - len(seleccionados)
+        for item in base.filter(categoria_id=emprendimiento_actual.categoria_id).exclude(pk__in=vistos).order_by('-destacado', '-visitas', 'nombre')[:faltan]:
+            seleccionados.append(item)
+            vistos.add(item.pk)
+
+    if len(seleccionados) < limite:
+        faltan = limite - len(seleccionados)
+        for item in base.exclude(pk__in=vistos).order_by('-destacado', '-visitas', 'nombre')[:faltan]:
+            seleccionados.append(item)
+
+    return [
+        {
+            'id': item.id,
+            'nombre': item.nombre,
+            'descripcion': item.descripcion,
+            'categoria': item.categoria.nombre if item.categoria_id else None,
+            'parroquia': item.parroquia.nombre if item.parroquia_id else None,
+            'imagen': _imagen_principal('emprendimiento', item.id, request),
+        }
+        for item in seleccionados
+    ]
+
 
 @require_GET
 def api_root(request):
@@ -91,74 +310,149 @@ def api_root(request):
 
 @require_GET
 def atractivos_list(request):
-    atractivos = (
+    atractivos = list(
         Atractivo.objects.filter(**_filtro_publicado())
-        .select_related('categoria', 'parroquia')
+        .select_related('categoria', 'parroquia', 'detalle')
         .order_by('-destacado', '-creado_en', '-visitas')
     )
 
-    data = [
-        {
+    ids = [a.id for a in atractivos]
+    servicios_map = _batch_servicios_atractivos_lista(ids)
+
+    data = []
+    for a in atractivos:
+        detalle = getattr(a, 'detalle', None)
+        horario = a.horario or (detalle.horario if detalle else None)
+
+        data.append({
             'id': a.id,
             'nombre': a.nombre,
-            'imagen': _imagen_principal('atractivo', a.id),
+            'imagen': _imagen_principal('atractivo', a.id, request),
             'slug': a.slug,
             'descripcion': a.descripcion,
             'categoria': a.categoria.nombre if a.categoria_id else None,
             'parroquia': a.parroquia.nombre if a.parroquia_id else None,
             'latitud': float(a.latitud) if a.latitud is not None else None,
             'longitud': float(a.longitud) if a.longitud is not None else None,
+            'horario': horario,
+            'servicios': servicios_map.get(a.id, []),
             'visitas': a.visitas,
             'destacado': a.destacado,
-        }
-        for a in atractivos
-    ]
+        })
 
     return JsonResponse({'results': data})
 
 
 @require_GET
+def galeria_publica_list(request):
+    """Todas las imágenes activas de entidades publicadas (atractivos, rutas, emprendimientos, eventos)."""
+    filtro = _filtro_publicado()
+    grupos = [
+        ('atractivo', list(Atractivo.objects.filter(**filtro).values_list('id', flat=True))),
+        ('ruta', list(Ruta.objects.filter(**filtro).values_list('id', flat=True))),
+        ('emprendimiento', list(Emprendimiento.objects.filter(**filtro).values_list('id', flat=True))),
+        ('evento', list(Evento.objects.filter(**filtro).values_list('id', flat=True))),
+    ]
+
+    condicion = Q()
+    for tipo, ids in grupos:
+        if ids:
+            condicion |= Q(entidad_tipo=tipo, entidad_id__in=ids)
+
+    if not condicion:
+        return JsonResponse({'results': []})
+
+    medias = (
+        Multimedia.objects
+        .filter(condicion, activo=True)
+        .exclude(tipo__in=['video', 'documento'])
+        .order_by('-principal', 'orden', '-creado_en')
+    )
+
+    results = []
+    urls_vistas = set()
+    for media in medias:
+        if not media.archivo:
+            continue
+        url = build_media_url(media.archivo, request)
+        if not url or url in urls_vistas:
+            continue
+        urls_vistas.add(url)
+        results.append({
+            'url': url,
+            'titulo': media.titulo or '',
+            'entidad_tipo': media.entidad_tipo,
+        })
+
+    return JsonResponse({'results': results})
+
+
+@require_GET
 def rutas_list(request):
-    rutas = (
+    rutas = list(
         Ruta.objects.filter(**_filtro_publicado())
         .order_by('-destacado', '-creado_en')
     )
 
-    data = [
-        {
+    ids = [r.id for r in rutas]
+    paradas_map, imagenes_map = _batch_datos_rutas_lista(ids, request)
+
+    data = []
+    for r in rutas:
+        paradas = paradas_map.get(r.id, [])
+        imagenes = imagenes_map.get(r.id, [])
+        imagen_principal = _imagen_principal('ruta', r.id, request)
+        if imagen_principal and imagen_principal not in imagenes:
+            imagenes = [imagen_principal, *imagenes]
+        elif imagen_principal and not imagenes:
+            imagenes = [imagen_principal]
+
+        data.append({
             'id': r.id,
             'nombre': r.nombre,
             'descripcion': r.descripcion,
             'distancia_km': float(r.distancia_km) if r.distancia_km is not None else None,
             'duracion_estimada': r.duracion_estimada,
             'dificultad': r.dificultad,
-            'num_atractivos': r.atractivos.filter(activo=True).count(),
+            'num_atractivos': len(paradas) or r.atractivos.filter(activo=True).count(),
             'lat_inicio': float(r.lat_inicio) if r.lat_inicio is not None else None,
             'lon_inicio': float(r.lon_inicio) if r.lon_inicio is not None else None,
-            'imagen': _imagen_principal('ruta', r.id),
+            'imagen': imagen_principal,
+            'imagenes': imagenes[:3],
+            'paradas': paradas,
+            'geojson_ruta': r.geojson_ruta,
             'destacado': r.destacado,
-        }
-        for r in rutas
-    ]
+        })
 
     return JsonResponse({'results': data})
 
 @require_GET
 def emprendimientos_list(request):
-    emprendimientos = (
+    emprendimientos = list(
         Emprendimiento.objects.filter(**_filtro_publicado())
         .select_related('categoria', 'parroquia', 'estado_publicacion')
         .order_by('-destacado', '-creado_en', '-visitas')
     )
 
-    data = [
-        {
+    ids = [e.id for e in emprendimientos]
+    imagenes_map, servicios_map, redes_map, atractivo_map = _batch_datos_emprendimientos_lista(ids, request)
+
+    data = []
+    for e in emprendimientos:
+        imagenes = imagenes_map.get(e.id) or []
+        imagen_principal = imagenes[0] if imagenes else _imagen_principal('emprendimiento', e.id, request)
+        if imagen_principal and not imagenes:
+            imagenes = [imagen_principal]
+
+        data.append({
             'id': e.id,
             'nombre': e.nombre,
-            'imagen': _imagen_principal('emprendimiento', e.id),
+            'imagen': imagen_principal,
+            'imagenes': imagenes,
             'descripcion': e.descripcion,
             'categoria': e.categoria.nombre if e.categoria_id else None,
             'parroquia': e.parroquia.nombre if e.parroquia_id else None,
+            'direccion': e.direccion,
             'estado_publicacion': e.estado_publicacion.nombre if e.estado_publicacion_id else None,
             'telefono': e.telefono,
             'email': e.email,
@@ -168,9 +462,10 @@ def emprendimientos_list(request):
             'longitud': float(e.longitud) if e.longitud is not None else None,
             'visitas': e.visitas,
             'destacado': e.destacado,
-        }
-        for e in emprendimientos
-    ]
+            'servicios': servicios_map.get(e.id, []),
+            'redes_sociales': redes_map.get(e.id, []),
+            'atractivo_cercano': atractivo_map.get(e.id),
+        })
 
     return JsonResponse({'results': data})
 
@@ -694,19 +989,7 @@ def atractivos_detail(request, slug):
         for ac in a.atractivo_actividades.select_related('actividad').all()
     ]
 
-    emprendimientos_cercanos = [
-        {
-            'id': r.emprendimiento.id,
-            'nombre': r.emprendimiento.nombre,
-            'descripcion': r.emprendimiento.descripcion,
-            'imagen': _imagen_principal('emprendimiento', r.emprendimiento.id),
-            'categoria': r.emprendimiento.categoria.nombre if r.emprendimiento.categoria_id else None,
-            'distancia_referencial': float(r.distancia_referencial) if r.distancia_referencial is not None else None,
-        }
-        for r in EmprendimientoRelacion.objects
-            .filter(atractivo=a, emprendimiento__activo=True, emprendimiento__estado_publicacion__codigo='publicado')
-            .select_related('emprendimiento', 'emprendimiento__categoria')
-    ]
+    atractivos_recomendados = _recomendar_atractivos(a, request)
 
     data = {
         'id': a.id,
@@ -729,7 +1012,7 @@ def atractivos_detail(request, slug):
         'servicios': servicios,
         'actividades': actividades,
         'multimedia': multimedia,
-        'emprendimientos_cercanos': emprendimientos_cercanos,
+        'atractivos_recomendados': atractivos_recomendados,
     }
     return JsonResponse(data)
 
@@ -833,25 +1116,7 @@ def emprendimientos_detail(request, emp_id):
         for red in e.redes_sociales.filter(activo=True)
     ]
 
-    atractivos_cercanos = [
-        {
-            'id': rel.atractivo.id,
-            'nombre': rel.atractivo.nombre,
-            'slug': rel.atractivo.slug,
-            'categoria': rel.atractivo.categoria.nombre if rel.atractivo.categoria_id else None,
-            'descripcion': rel.atractivo.descripcion,
-            'distancia_referencial': float(rel.distancia_referencial) if rel.distancia_referencial is not None else None,
-            'imagen': _imagen_principal('atractivo', rel.atractivo.id),
-        }
-        for rel in EmprendimientoRelacion.objects
-            .filter(
-                emprendimiento=e,
-                atractivo__isnull=False,
-                atractivo__activo=True,
-                atractivo__estado_publicacion__codigo='publicado',
-            )
-            .select_related('atractivo', 'atractivo__categoria')
-    ]
+    emprendimientos_recomendados = _recomendar_emprendimientos(e, request)
 
     data = {
         'id': e.id,
@@ -870,7 +1135,7 @@ def emprendimientos_detail(request, emp_id):
         'destacado': e.destacado,
         'servicios': servicios,
         'redes_sociales': redes_sociales,
-        'atractivos_cercanos': atractivos_cercanos,
+        'emprendimientos_recomendados': emprendimientos_recomendados,
         'multimedia': multimedia,
     }
     return JsonResponse(data)

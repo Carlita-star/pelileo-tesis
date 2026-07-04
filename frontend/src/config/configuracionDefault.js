@@ -18,7 +18,6 @@ export const CONFIG_DEFAULT = {
     fuenteSecundaria: 'Inter, sans-serif',
     tamanoBase: 16,
     bordeRadio: 12,
-    modoOscuro: false,
     sombraGlobal: true,
   },
 

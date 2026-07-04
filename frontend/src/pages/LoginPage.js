@@ -23,6 +23,16 @@ function LoginPage({ initialView = 'login' }) {
   });
 
   useEffect(() => {
+    if (token) {
+      setView('reset');
+      return;
+    }
+    if (location.pathname === ADMIN_PATHS.recuperar) {
+      setView('recover');
+    }
+  }, [location.pathname, token]);
+
+  useEffect(() => {
     if (isAuthenticated() && hasPanelAccess()) {
       navigate(ADMIN_PATHS.dashboard, { replace: true });
     }
@@ -173,14 +183,8 @@ function LoginPage({ initialView = 'login' }) {
         return;
       }
 
-      setSuccess(data.message || 'Registro exitoso. Ya puedes iniciar sesión.');
-      setView('login');
-      setNombres('');
-      setApellidos('');
-      setRegisterUsername('');
-      setRegisterEmail('');
-      setRegisterPassword('');
-      setRegisterConfirmPassword('');
+      toast.success(data.message || 'Registro exitoso. Ya puedes explorar el portal turístico.');
+      navigate('/', { replace: true });
     } catch (err) {
       setError('No se pudo conectar al servidor.');
     } finally {
@@ -234,6 +238,13 @@ function LoginPage({ initialView = 'login' }) {
     navigate(ADMIN_PATHS.login, { replace: true });
   };
 
+  const goToRecover = () => {
+    setError('');
+    setSuccess('');
+    setView('recover');
+    navigate(ADMIN_PATHS.recuperar, { replace: true });
+  };
+
   return (
     <div className="login-page">
       <div className="login-card">
@@ -252,7 +263,7 @@ function LoginPage({ initialView = 'login' }) {
         {view === 'login' && (
           <>
             <h1>Iniciar sesión</h1>
-            <p className="login-description">Ingresa tus credenciales para acceder al panel administrativo.</p>
+            <p className="login-description">Ingresa tus credenciales de personal autorizado del GAD.</p>
 
             <form className="login-form" onSubmit={handleLogin}>
               <label className="login-field">
@@ -294,11 +305,12 @@ function LoginPage({ initialView = 'login' }) {
             </form>
 
             <div className="login-help">
-              <button type="button" className="login-link" onClick={() => navigate(ADMIN_PATHS.recuperar)}>
-                olvidé mi contraseña
+              <button type="button" className="login-link" onClick={goToRecover}>
+                ¿Olvidaste tu contraseña?
               </button>
+              <span className="login-help-sep" aria-hidden>·</span>
               <button type="button" className="login-link" onClick={() => setView('register')}>
-                crear una cuenta
+                Crear una cuenta
               </button>
             </div>
           </>
@@ -306,8 +318,10 @@ function LoginPage({ initialView = 'login' }) {
 
         {view === 'register' && (
           <>
-            <h1>Crear cuenta</h1>
-            <p className="login-description">Regístrate para acceder al panel administrativo.</p>
+            <h1>Crear cuenta de visitante</h1>
+            <p className="login-description">
+              Regístrate para usar el portal turístico. Esta cuenta no tiene acceso al panel administrativo.
+            </p>
 
             <form className="login-form" onSubmit={handleRegister}>
               <label className="login-field">

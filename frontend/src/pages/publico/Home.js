@@ -4,6 +4,7 @@ import { useConfiguracion } from '../../context/ConfiguracionContext';
 import { listarAtractivos } from '../../services/atractivos.service';
 import { listarRutas } from '../../services/rutas.service';
 import { listarEmprendimientos } from '../../services/emprendimientos.service';
+import { listarGaleriaPublica } from '../../services/galeria.service';
 import { urlImagen } from '../../services/media';
 import CarruselInicio from '../../components/publico/CarruselInicio';
 import GaleriaCarrusel from '../../components/publico/GaleriaCarrusel';
@@ -22,20 +23,32 @@ function destacar(lista, n = 3) {
   return (marcados.length ? marcados : lista).slice(0, n);
 }
 
+/** Imagen principal de la galería de cada registro publicado (campo `imagen` del API). */
+function imgsPrincipales(atractivos, rutas, emprendimientos) {
+  const urls = [
+    ...atractivos.map((a) => urlImagen(a.imagen)),
+    ...rutas.map((r) => urlImagen(r.imagen)),
+    ...emprendimientos.map((e) => urlImagen(e.imagen)),
+  ].filter(Boolean);
+  return [...new Set(urls)];
+}
+
 function Home() {
   const config = useConfiguracion();
   const [atractivos, setAtractivos] = useState([]);
   const [rutas, setRutas] = useState([]);
   const [emprendimientos, setEmprendimientos] = useState([]);
+  const [galeriaImgs, setGaleriaImgs] = useState([]);
 
   useEffect(() => {
     let activo = true;
-    Promise.allSettled([listarAtractivos(), listarRutas(), listarEmprendimientos()])
-      .then(([at, ru, em]) => {
+    Promise.allSettled([listarAtractivos(), listarRutas(), listarEmprendimientos(), listarGaleriaPublica()])
+      .then(([at, ru, em, gal]) => {
         if (!activo) return;
         setAtractivos(at.value ?? []);
         setRutas(ru.value ?? []);
         setEmprendimientos(em.value ?? []);
+        setGaleriaImgs(gal.value ?? []);
       });
     return () => { activo = false; };
   }, []);
@@ -45,9 +58,9 @@ function Home() {
     ...emprendimientos.map((e) => urlImagen(e.imagen)),
   ].filter(Boolean);
 
-  // La galería usa SOLO las fotos de los atractivos destacados (no todas).
-  const destImgs = destacar(atractivos, 6).map((a) => urlImagen(a.imagen)).filter(Boolean);
-  const galeria = (destImgs.length ? destImgs : poolImgs).slice(0, 6);
+  const carruselImgs = imgsPrincipales(atractivos, rutas, emprendimientos);
+  const galeria = galeriaImgs.length ? galeriaImgs : poolImgs;
+  const imagenSobrePelileo = config?.imagenSeccionInicioUrl;
 
   const titulo = config?.nombre ? `Descubre ${config.nombre}` : 'Descubre Pelileo';
   const eslogan = config?.eslogan || 'Naturaleza, cultura y tradición en el corazón de Tungurahua';
@@ -57,7 +70,7 @@ function Home() {
   return (
     <div>
       {/* 1. CARRUSEL */}
-      <CarruselInicio imagenes={poolImgs.slice(0, 5)} titulo={titulo} eslogan={eslogan} />
+      <CarruselInicio imagenes={carruselImgs} titulo={titulo} eslogan={eslogan} />
 
       {/* 2. SOBRE PELILEO (en tarjeta) */}
       <section className="mx-auto max-w-7xl px-4 py-16">
@@ -72,7 +85,9 @@ function Home() {
               </Link>
             </div>
             <div className="min-h-[260px] bg-slate-100">
-              {galeria[0] && <img src={galeria[0]} alt="Pelileo" className="h-full w-full object-cover" />}
+              {imagenSobrePelileo && (
+                <img src={imagenSobrePelileo} alt="Pelileo" className="h-full w-full object-cover" />
+              )}
             </div>
           </div>
         </div>

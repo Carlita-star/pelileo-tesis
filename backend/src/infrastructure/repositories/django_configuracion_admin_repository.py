@@ -27,7 +27,9 @@ MENU_DEFAULT = [
     ('Mapa', '/mapa'),
 ]
 
-IMAGEN_TIPOS = ('logo_principal', 'logo_secundario', 'favicon')
+IMAGEN_TIPOS = ('logo_principal', 'logo_secundario', 'favicon', 'imagen_seccion_inicio')
+# Imágenes guardadas en tabla configuraciones (clave/valor), sin columna nueva en empresas.
+IMAGEN_CONFIG_TIPOS = ('imagen_seccion_inicio',)
 
 
 class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
@@ -158,6 +160,9 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
             'logo_principal_url': self._media_url(empresa.logo_principal),
             'logo_secundario_url': self._media_url(empresa.logo_secundario),
             'favicon_url': self._media_url(empresa.favicon),
+            'imagen_seccion_inicio_url': self._media_url(
+                self._get_config_valor(empresa, 'imagen_seccion_inicio')
+            ),
             'latitud': float(empresa.latitud) if empresa.latitud is not None else None,
             'longitud': float(empresa.longitud) if empresa.longitud is not None else None,
             'eslogan': self._get_config_valor(empresa, 'eslogan', 'Turismo · GAD Municipal'),
@@ -297,7 +302,9 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
             'mision': empresa.get('mision'),
             'vision': empresa.get('vision'),
             'logoUrl': empresa.get('logo_principal_url'),
+            'logoSecundarioUrl': empresa.get('logo_secundario_url'),
             'faviconUrl': empresa.get('favicon_url'),
+            'imagenSeccionInicioUrl': empresa.get('imagen_seccion_inicio_url'),
             'color_primario': primario,
             'color_primario_oscuro': apariencia.get('color_secundario') or '#157A5A',
             'color_secundario': apariencia.get('color_terciario') or '#F9A825',
@@ -507,8 +514,16 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
                 dest.write(chunk)
 
         rel_path = f'empresa/{filename}'
-        setattr(empresa, tipo, rel_path)
-        empresa.save(update_fields=[tipo, 'actualizado_en'])
+        if tipo in IMAGEN_CONFIG_TIPOS:
+            self._set_config_valor(
+                empresa,
+                tipo,
+                rel_path,
+                'Imagen de la sección Sobre Pelileo en el inicio del portal',
+            )
+        else:
+            setattr(empresa, tipo, rel_path)
+            empresa.save(update_fields=[tipo, 'actualizado_en'])
 
         self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'identidad', 'tipo': tipo})
         return {

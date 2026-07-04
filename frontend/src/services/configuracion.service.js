@@ -19,7 +19,7 @@ function faviconMimeType(url) {
   return 'image/x-icon';
 }
 
-/** Aplica colores, fuentes y modo oscuro al documento. */
+/** Aplica colores y fuentes institucionales al documento. */
 export function applyThemeVariables(cfg) {
   if (!cfg) return;
 
@@ -43,11 +43,7 @@ export function applyThemeVariables(cfg) {
   if (cfg.bordeRadio != null) {
     raiz.style.setProperty('--borde-radio', `${cfg.bordeRadio}px`);
   }
-  if (cfg.modoOscuro) {
-    document.body.classList.add('modo-oscuro');
-  } else {
-    document.body.classList.remove('modo-oscuro');
-  }
+  document.body.classList.remove('modo-oscuro');
 }
 
 function normalizeHeader(headerCfg = {}) {
@@ -139,6 +135,7 @@ export function mapConfiguracionApi(data) {
     logoUrl: mediaUrl(data.logoUrl || empresa.logo_principal_url) || CONFIG_DEFAULT.logoUrl,
     logoSecundarioUrl: mediaUrl(data.logoSecundarioUrl || empresa.logo_secundario_url),
     faviconUrl: mediaUrl(data.faviconUrl || empresa.favicon_url),
+    imagenSeccionInicioUrl: mediaUrl(data.imagenSeccionInicioUrl || empresa.imagen_seccion_inicio_url),
     colores: {
       primario,
       primarioOscuro: secundario || CONFIG_DEFAULT.colores.primarioOscuro,
@@ -147,7 +144,6 @@ export function mapConfiguracionApi(data) {
     },
     fuente: apariencia.fuente_principal || data.fuente_principal,
     tamanoFuente: apariencia.tamano_fuente_base || data.tamano_fuente_base || 16,
-    modoOscuro: apariencia.modo_oscuro ?? data.modo_oscuro ?? false,
     bordeRadio: apariencia.borde_radio ?? data.borde_radio ?? 10,
     menu: data.menu?.length ? data.menu : CONFIG_DEFAULT.menu,
     header: normalizeHeader(headerCfg),

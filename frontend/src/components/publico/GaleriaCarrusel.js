@@ -34,7 +34,7 @@ function GaleriaCarrusel({ imagenes = [] }) {
 
           return (
             <div
-              key={i}
+              key={src}
               style={estilo}
               onClick={() => esCentro && setLb(i)}
               className="absolute h-60 w-[78%] overflow-hidden rounded-2xl shadow-xl ring-1 ring-slate-200 sm:h-80 sm:w-[56%]"

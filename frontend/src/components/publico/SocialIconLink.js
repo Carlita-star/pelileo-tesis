@@ -27,6 +27,17 @@ const HOVER_STYLES = {
   link: 'hover:bg-slate-600 hover:text-white hover:border-slate-600',
 };
 
+const BRAND_STYLES = {
+  facebook: 'bg-[#1877F2] border-[#1877F2] text-white',
+  instagram: 'bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af] border-transparent text-white',
+  tiktok: 'bg-black border-black text-white',
+  youtube: 'bg-[#FF0000] border-[#FF0000] text-white',
+  whatsapp: 'bg-[#25D366] border-[#25D366] text-white',
+  x: 'bg-black border-black text-white',
+  linkedin: 'bg-[#0A66C2] border-[#0A66C2] text-white',
+  link: 'bg-[#2563eb] border-[#2563eb] text-white',
+};
+
 function SocialSvg({ type, size = 20 }) {
   const common = {
     width: size,
@@ -100,10 +111,13 @@ export function SocialIconLink({
   const key = normalizeSocialKey(nombre);
   const dims = SIZE_MAP[size] || SIZE_MAP.md;
   const hover = HOVER_STYLES[key] || HOVER_STYLES.link;
+  const brand = BRAND_STYLES[key] || BRAND_STYLES.link;
 
-  const baseStyles = variant === 'dark'
-    ? 'border border-slate-600 bg-slate-700/50 text-slate-200'
-    : 'border border-slate-200 bg-white text-slate-600 shadow-sm';
+  const baseStyles = variant === 'brand'
+    ? `border ${brand}`
+    : variant === 'dark'
+      ? 'border border-slate-600 bg-slate-700/50 text-slate-200'
+      : 'border border-slate-200 bg-white text-slate-600 shadow-sm';
 
   return (
     <a
@@ -112,7 +126,7 @@ export function SocialIconLink({
       rel="noreferrer noopener"
       aria-label={nombre || 'Red social'}
       title={nombre || 'Red social'}
-      className={`inline-flex shrink-0 items-center justify-center rounded-full transition-all duration-200 ${dims.btn} ${baseStyles} ${hover} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full transition-all duration-200 ${dims.btn} ${baseStyles} ${variant === 'brand' ? 'hover:opacity-90' : hover} ${className}`}
     >
       <SocialSvg type={key} size={dims.icon} />
     </a>

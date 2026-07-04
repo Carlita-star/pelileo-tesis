@@ -189,7 +189,16 @@ input {
 .login-help {
   margin-top: 18px;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
+  gap: 6px 10px;
+}
+
+.login-help-sep {
+  color: #94a3b8;
+  font-weight: 600;
+  user-select: none;
 }
 
 .login-link,
@@ -197,22 +206,24 @@ input {
   border: none;
   background: transparent;
   color: #0e8b62;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: none;
-  font-size: 0.95rem;
-  transition: color 0.2s ease, transform 0.2s ease;
+  text-decoration: underline;
+  text-decoration-color: rgba(14, 139, 98, 0.35);
+  text-underline-offset: 3px;
+  font-size: 0.92rem;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
 .login-link:hover,
 .login-forgot:hover {
   color: #0b6b49;
-  transform: translateX(4px);
+  text-decoration-color: rgba(11, 107, 73, 0.6);
 }
 
 .login-link:active,
 .login-forgot:active {
-  transform: translateX(2px);
+  color: #095a3d;
 }
 
 .login-note {

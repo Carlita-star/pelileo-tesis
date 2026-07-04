@@ -42,19 +42,22 @@ def register(request):
         usuario.set_password(data['password'])
         usuario.save()
 
-        gestor = Rol.objects.filter(nombre='gestor_turistico').first()
-        if gestor:
-            UsuarioRol.objects.get_or_create(usuario=usuario, rol=gestor)
+        visitante, _ = Rol.objects.get_or_create(
+            nombre='visitante',
+            defaults={'descripcion': 'Usuario visitante del portal'},
+        )
+        UsuarioRol.objects.get_or_create(usuario=usuario, rol=visitante)
 
         return JsonResponse(
             {
-                'message': 'Usuario registrado exitosamente.',
+                'message': 'Cuenta creada exitosamente. Ya puedes usar el portal turístico.',
                 'usuario': {
                     'id': usuario.id,
                     'nombres': usuario.nombres,
                     'apellidos': usuario.apellidos,
                     'username': usuario.username,
                     'email': usuario.email,
+                    'roles': ['visitante'],
                 },
             },
             status=201,

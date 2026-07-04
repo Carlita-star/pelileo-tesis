@@ -76,6 +76,7 @@ function ConfiguracionPage() {
       logo_principal_url: emp.logo_principal_url,
       logo_secundario_url: emp.logo_secundario_url,
       favicon_url: emp.favicon_url,
+      imagen_seccion_inicio_url: emp.imagen_seccion_inicio_url,
     });
     setApariencia(data.apariencia || {});
     setRedes(data.redes?.length ? data.redes : []);
@@ -239,6 +240,7 @@ function ConfiguracionPage() {
                 ['logo_principal', 'Logo principal', identidad.logo_principal_url],
                 ['logo_secundario', 'Logo secundario', identidad.logo_secundario_url],
                 ['favicon', 'Favicon', identidad.favicon_url],
+                ['imagen_seccion_inicio', 'Imagen sección «Sobre Pelileo» (inicio)', identidad.imagen_seccion_inicio_url],
               ].map(([tipo, label, url]) => (
                 <div key={tipo} className="config-imagen-item">
                   <h4>{label}</h4>
@@ -254,12 +256,12 @@ function ConfiguracionPage() {
           {tabActiva === 'apariencia' && (
             <form className="catalog-form config-form" onSubmit={(e) => {
               e.preventDefault();
-              guardar('apariencia', apariencia, 'Apariencia guardada.');
+              guardar('apariencia', { ...apariencia, modo_oscuro: false }, 'Apariencia guardada.');
             }}
             >
               <div className="config-preview-live" style={{
-                background: apariencia.modo_oscuro ? '#1a1a2e' : '#ffffff',
-                color: apariencia.modo_oscuro ? '#f0f0f0' : apariencia.color_primario || '#1D9E75',
+                background: '#ffffff',
+                color: apariencia.color_primario || '#1D9E75',
                 borderRadius: `${apariencia.borde_radio ?? 10}px`,
                 fontFamily: apariencia.fuente_principal || 'Inter, sans-serif',
                 fontSize: `${apariencia.tamano_fuente_base ?? 16}px`,
@@ -308,10 +310,6 @@ function ConfiguracionPage() {
                   <input type="range" min="0" max="50" value={apariencia.borde_radio ?? 10} onChange={(e) => setApariencia((a) => ({ ...a, borde_radio: Number(e.target.value) }))} />
                 </label>
               </div>
-              <label className="checkbox-label">
-                <input type="checkbox" checked={Boolean(apariencia.modo_oscuro)} onChange={(e) => setApariencia((a) => ({ ...a, modo_oscuro: e.target.checked }))} />
-                Modo oscuro
-              </label>
               <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
             </form>
           )}
