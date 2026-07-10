@@ -1,20 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Lightbox from './Lightbox';
 
+const INTERVALO_MS = 5000;
+
 // Galería estilo "coverflow": la imagen del centro se ve grande y clara, y las
-// de los lados aparecen más pequeñas y un poco opacas. Flechas para moverse y,
-// al hacer clic en la del centro, se abre en grande (centrada) con el lightbox.
+// de los lados aparecen más pequeñas y un poco opacas. Autoavanza cada 5s,
+// flechas y puntos para navegar; al hacer clic en la del centro se abre el lightbox.
 function GaleriaCarrusel({ imagenes = [] }) {
   const [activo, setActivo] = useState(0);
   const [lb, setLb] = useState(null);
+  const [pausado, setPausado] = useState(false);
   const n = imagenes.length;
+
+  useEffect(() => {
+    if (n <= 1 || lb != null || pausado) return;
+    const t = setInterval(() => setActivo((p) => (p + 1) % n), INTERVALO_MS);
+    return () => clearInterval(t);
+  }, [n, lb, pausado]);
+
   if (n === 0) return null;
 
   const ir = (idx) => setActivo(((idx % n) + n) % n);
 
   return (
     <div>
-      <div className="relative mx-auto flex h-72 max-w-4xl items-center justify-center overflow-hidden sm:h-96">
+      <div
+        className="relative mx-auto flex h-72 max-w-4xl items-center justify-center overflow-hidden sm:h-96"
+        onMouseEnter={() => setPausado(true)}
+        onMouseLeave={() => setPausado(false)}
+      >
         {imagenes.map((src, i) => {
           // Distancia (con envoltura) de esta imagen respecto a la del centro.
           let offset = i - activo;

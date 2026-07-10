@@ -21,6 +21,8 @@ import SinPermisoPage from '../pages/admin/SinPermisoPage';
 import PerfilPage from '../pages/admin/PerfilPage';
 import AdminOnlyRoute from './AdminOnlyRoute';
 import ErroresMonitorPage from '../pages/admin/ErroresMonitorPage';
+import ResenasMonitorPage from '../pages/admin/ResenasMonitorPage';
+import PapeleraPage from '../pages/admin/PapeleraPage';
 
 function AdminRoutes() {
   return (
@@ -52,6 +54,8 @@ function AdminRoutes() {
         <Route path="catalogos" element={<CatalogosPage />} />
         <Route path="configuracion" element={<ConfiguracionPage />} />
         <Route path="perfil" element={<PerfilPage />} />
+        <Route path="resenas" element={<ResenasMonitorPage />} />
+        <Route path="papelera" element={<PapeleraPage />} />
         <Route path="sin-permiso" element={<SinPermisoPage />} />
 
         <Route element={<AdminOnlyRoute />}>

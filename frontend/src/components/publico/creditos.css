@@ -1,0 +1,469 @@
+.creditos-page {
+  background: #f8fafc;
+}
+
+/* ── Hero ── */
+.creditos-hero {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  padding: 2.5rem 1rem 5rem;
+}
+
+.creditos-hero__bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #071a20 0%, #0f4c5c 35%, #1d9e75 100%);
+}
+
+.creditos-hero__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.45;
+}
+
+.creditos-hero__orb--1 {
+  width: 320px;
+  height: 320px;
+  top: -80px;
+  right: -60px;
+  background: #f9a825;
+}
+
+.creditos-hero__orb--2 {
+  width: 280px;
+  height: 280px;
+  bottom: -100px;
+  left: -40px;
+  background: #1d74f2;
+}
+
+.creditos-hero__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.creditos-hero__content {
+  position: relative;
+  z-index: 1;
+  max-width: 44rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.creditos-hero__crumb {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 1.25rem;
+}
+
+.creditos-hero__crumb a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.creditos-hero__crumb a:hover {
+  color: #fff;
+}
+
+.creditos-hero__tag {
+  display: inline-block;
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.creditos-hero h1 {
+  margin: 1rem 0 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.creditos-hero__lead {
+  margin: 1rem auto 0;
+  max-width: 34rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.creditos-hero__meta {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.creditos-hero__meta span {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ── Tech strip ── */
+.creditos-tech {
+  position: relative;
+  z-index: 2;
+  max-width: 56rem;
+  margin: -2.5rem auto 0;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 20px 50px -24px rgba(15, 76, 92, 0.35);
+  border: 1px solid #e2e8f0;
+}
+
+.creditos-tech__label {
+  margin: 0 0 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.creditos-tech__list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.creditos-tech__list li {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0f4c5c;
+  background: linear-gradient(135deg, #f0fdf9, #ecfdf5);
+  border: 1px solid #a7f3d0;
+}
+
+/* ── Team section ── */
+.creditos-equipo {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 3rem 1rem 2rem;
+}
+
+.creditos-equipo__intro {
+  text-align: center;
+  max-width: 36rem;
+  margin: 0 auto 2.5rem;
+}
+
+.creditos-equipo__intro h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.creditos-equipo__intro p {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: #64748b;
+}
+
+.creditos-grid {
+  display: grid;
+  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+/* ── Cards ── */
+.creditos-card {
+  --card-accent: #1d9e75;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 24px -8px rgba(15, 23, 42, 0.12);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
+  animation: creditos-fade-up 0.6s ease backwards;
+  animation-delay: var(--card-delay, 0s);
+}
+
+@keyframes creditos-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.creditos-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 28px 56px -16px color-mix(in srgb, var(--card-accent) 35%, transparent);
+}
+
+.creditos-card__glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(135deg, var(--card-accent), color-mix(in srgb, var(--card-accent) 60%, #000));
+  opacity: 0.12;
+}
+
+.creditos-card__header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1.5rem 0;
+}
+
+.creditos-card__foto-ring {
+  padding: 4px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--card-accent), color-mix(in srgb, var(--card-accent) 50%, #fff));
+  box-shadow: 0 12px 32px -8px color-mix(in srgb, var(--card-accent) 50%, transparent);
+}
+
+.creditos-card__foto,
+.creditos-card__avatar {
+  display: block;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+}
+
+.creditos-card__foto {
+  object-fit: cover;
+}
+
+.creditos-card__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, var(--card-accent), color-mix(in srgb, var(--card-accent) 70%, #000));
+  color: #fff;
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.creditos-card__badge {
+  margin-top: 1rem;
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--card-accent);
+  background: color-mix(in srgb, var(--card-accent) 12%, #fff);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 25%, transparent);
+}
+
+.creditos-card__body {
+  flex: 1;
+  padding: 1.25rem 1.5rem 1.75rem;
+  text-align: center;
+}
+
+.creditos-card__nombre {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.creditos-card__rol-detalle {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.creditos-card__skills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+
+.creditos-card__skills li {
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.creditos-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.creditos-card__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff;
+  background: var(--card-accent);
+  transition: filter 0.2s ease, transform 0.2s ease;
+  word-break: break-all;
+}
+
+.creditos-card__btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.creditos-card__btn--outline {
+  color: var(--card-accent);
+  background: color-mix(in srgb, var(--card-accent) 8%, #fff);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 30%, transparent);
+}
+
+.creditos-card__btn--outline:hover {
+  background: color-mix(in srgb, var(--card-accent) 15%, #fff);
+}
+
+.creditos-card__redes {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.creditos-card__redes a {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--card-accent);
+  text-decoration: none;
+}
+
+/* ── CTA ── */
+.creditos-cta {
+  padding: 0 1rem 4rem;
+}
+
+.creditos-cta__inner {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, #0f4c5c 0%, #1a6b5c 50%, #1d9e75 100%);
+  color: #fff;
+  box-shadow: 0 24px 64px -20px rgba(15, 76, 92, 0.5);
+}
+
+.creditos-cta__inner h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.creditos-cta__inner p {
+  margin: 0.75rem auto 0;
+  max-width: 32rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.creditos-cta__links {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.creditos-cta__btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.creditos-cta__btn:hover {
+  transform: translateY(-2px);
+}
+
+.creditos-cta__btn--primary {
+  color: #0f4c5c;
+  background: #fff;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3);
+}
+
+.creditos-cta__btn--ghost {
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+}
+
+.creditos-cta__btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 640px) {
+  .creditos-hero {
+    padding-bottom: 4rem;
+  }
+
+  .creditos-tech {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  .creditos-cta__inner {
+    padding: 2rem 1.25rem;
+  }
+}

@@ -86,11 +86,7 @@ def login(request):
         usuario = result['usuario']
 
         usuario_model = Usuario.objects.filter(id=usuario.id).prefetch_related('usuario_roles__rol').first()
-        if not usuario_model or not user_has_panel_access(usuario_model):
-            return JsonResponse(
-                {'error': 'Tu cuenta no tiene permisos para acceder al panel administrativo.'},
-                status=403,
-            )
+        panel_access = bool(usuario_model and user_has_panel_access(usuario_model))
 
         return JsonResponse(
             {
@@ -105,6 +101,7 @@ def login(request):
                     'roles': usuario.roles,
                 },
                 'token': result['token'],
+                'panel_access': panel_access,
             },
             status=200,
         )

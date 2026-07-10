@@ -5,8 +5,9 @@ import {
   clearSession,
   getStoredUser,
   getPrimaryRoleLabel,
-  isAdministrador,
+  hasPanelAccess,
 } from '../../services/authStorage';
+import { resumenResenasAdmin } from '../../services/resenasAdmin.service';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
 
 function getDisplayName(usuario) {
@@ -36,6 +37,7 @@ function AdminProfileMenu() {
   const usuario = getStoredUser();
   const [open, setOpen] = useState(false);
   const [fotoUrl, setFotoUrl] = useState(null);
+  const [totalResenas, setTotalResenas] = useState(0);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -45,6 +47,18 @@ function AdminProfileMenu() {
         if (!cancelled && data?.foto_url) {
           setFotoUrl(buildFotoUrl(data.foto_url));
         }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    resumenResenasAdmin()
+      .then((resumen) => {
+        if (!cancelled) setTotalResenas(resumen.total ?? 0);
       })
       .catch(() => {});
     return () => {
@@ -80,18 +94,23 @@ function AdminProfileMenu() {
     navigate(ADMIN_PATHS.perfil);
   };
 
+  const goPortal = () => {
+    setOpen(false);
+    navigate('/');
+  };
+
   const displayName = getDisplayName(usuario);
   const roleLabel = getPrimaryRoleLabel(usuario);
 
   return (
     <div className="admin-topbar-actions">
-      {isAdministrador() && (
+      {hasPanelAccess() && (
         <button
           type="button"
           className="admin-notifications-btn"
-          onClick={() => navigate(ADMIN_PATHS.errores)}
-          aria-label="Ver errores del sistema"
-          title="Errores del sistema"
+          onClick={() => navigate(ADMIN_PATHS.resenas)}
+          aria-label="Ver reseñas y calificaciones"
+          title="Reseñas y calificaciones"
         >
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
             <path
@@ -99,6 +118,9 @@ function AdminProfileMenu() {
               fill="currentColor"
             />
           </svg>
+          {totalResenas > 0 && (
+            <span className="admin-notifications-badge">{totalResenas > 99 ? '99+' : totalResenas}</span>
+          )}
         </button>
       )}
 
@@ -131,6 +153,9 @@ function AdminProfileMenu() {
             </div>
             <button type="button" className="admin-profile-dropdown-item" role="menuitem" onClick={goPerfil}>
               Ver perfil
+            </button>
+            <button type="button" className="admin-profile-dropdown-item" role="menuitem" onClick={goPortal}>
+              Volver al portal turístico
             </button>
             <button
               type="button"

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { urlImagen } from '../../services/media';
 import { slugify } from '../../services/slug';
+import { ResumenEstrellas } from './EstrellasCalificacion';
 
 function IconoPin({ className = 'h-4 w-4' }) {
   return (
@@ -87,6 +88,7 @@ function TarjetaAtractivo({ atractivo }) {
       </div>
 
       <div className="relative flex flex-1 flex-col gap-4 bg-gradient-to-b from-white via-white to-slate-50/90 px-5 py-5">
+        <ResumenEstrellas promedio={atractivo.promedio_calificacion} total={atractivo.total_resenas} />
         {horario && (
           <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50 px-3.5 py-3 ring-1 ring-sky-200/80">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-md shadow-sky-200">

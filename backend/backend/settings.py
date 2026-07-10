@@ -189,4 +189,5 @@ INSTALLED_APPS += [
     'src.domain.apariencia',
     'src.domain.roles',
     'src.domain.errores',
+    'src.domain.resenas',
 ]

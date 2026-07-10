@@ -61,3 +61,19 @@ html {
 .portal-publico .leaflet-container {
   z-index: 0;
 }
+
+.portal-publico .leaflet-top.leaflet-left {
+  top: auto;
+  bottom: 1rem;
+  left: 12px;
+}
+
+/* Submenú del header público — puente de hover desktop */
+.nav-submenu-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0.35rem;
+}

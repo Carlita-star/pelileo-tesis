@@ -3,6 +3,7 @@ import { apiRequest, getApiBase, getAuthHeaders } from '../services/apiClient';
 import { applySiteFavicon } from '../services/configuracion.service';
 import { useRefetchConfiguracion } from '../context/ConfiguracionContext';
 import MenuNavegacionTab from '../components/configuracion/MenuNavegacionTab';
+import LocationMapPicker from '../components/LocationMapPicker';
 import { useToast } from '../context/ToastContext';
 import { useErrorToast } from '../hooks/useErrorToast';
 
@@ -24,6 +25,16 @@ const FUENTES = [
   'Lato, sans-serif',
   'Montserrat, sans-serif',
 ];
+
+const COLORES_APARIENCIA_DEFAULT = {
+  color_primario: '#1D9E75',
+  color_secundario: '#157A5A',
+  color_terciario: '#2563EB',
+};
+
+function colorApariencia(apariencia, key) {
+  return apariencia[key] || COLORES_APARIENCIA_DEFAULT[key];
+}
 
 function mediaUrl(path) {
   if (!path) return null;
@@ -254,63 +265,149 @@ function ConfiguracionPage() {
           )}
 
           {tabActiva === 'apariencia' && (
-            <form className="catalog-form config-form" onSubmit={(e) => {
-              e.preventDefault();
-              guardar('apariencia', { ...apariencia, modo_oscuro: false }, 'Apariencia guardada.');
-            }}
-            >
-              <div className="config-preview-live" style={{
-                background: '#ffffff',
-                color: apariencia.color_primario || '#1D9E75',
-                borderRadius: `${apariencia.borde_radio ?? 10}px`,
-                fontFamily: apariencia.fuente_principal || 'Inter, sans-serif',
-                fontSize: `${apariencia.tamano_fuente_base ?? 16}px`,
-                border: `3px solid ${apariencia.color_secundario || '#F9A825'}`,
+            <form
+              className="catalog-form config-form apariencia-config-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                guardar('apariencia', { ...apariencia, modo_oscuro: false }, 'Apariencia guardada.');
               }}
-              >
-                <strong style={{ color: apariencia.color_primario }}>Vista previa en tiempo real</strong>
-                <p style={{ color: apariencia.color_terciario || '#1D74F2' }}>
-                  Los colores se actualizan al instante, sin guardar.
-                </p>
-                <button type="button" style={{
-                  background: apariencia.color_primario || '#1D9E75',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: `${apariencia.borde_radio ?? 10}px`,
-                  padding: '8px 16px',
-                }}
-                >
-                  Botón de ejemplo
-                </button>
+            >
+              <div className="apariencia-config">
+                <div className="apariencia-config__preview-col">
+                  <p className="apariencia-config__eyebrow">Vista previa</p>
+                  <div
+                    className="apariencia-preview"
+                    style={{
+                      fontFamily: apariencia.fuente_principal || FUENTES[0],
+                      fontSize: `${apariencia.tamano_fuente_base ?? 16}px`,
+                      borderRadius: `${apariencia.borde_radio ?? 10}px`,
+                    }}
+                  >
+                    <div
+                      className="apariencia-preview__bar"
+                      style={{ background: colorApariencia(apariencia, 'color_primario') }}
+                    >
+                      <span className="apariencia-preview__brand">Turismo Pelileo</span>
+                      <span className="apariencia-preview__nav-dot" />
+                      <span className="apariencia-preview__nav-dot" />
+                    </div>
+                    <div className="apariencia-preview__body">
+                      <h3 style={{ color: colorApariencia(apariencia, 'color_primario') }}>
+                        Título del portal
+                      </h3>
+                      <p style={{ color: colorApariencia(apariencia, 'color_terciario') }}>
+                        Los colores, fuente y bordes se actualizan al instante, sin guardar.
+                      </p>
+                      <div className="apariencia-preview__actions">
+                        <button
+                          type="button"
+                          className="apariencia-preview__btn-primary"
+                          style={{
+                            background: colorApariencia(apariencia, 'color_primario'),
+                            borderRadius: `${apariencia.borde_radio ?? 10}px`,
+                          }}
+                        >
+                          Botón principal
+                        </button>
+                        <button
+                          type="button"
+                          className="apariencia-preview__btn-secondary"
+                          style={{
+                            color: colorApariencia(apariencia, 'color_secundario'),
+                            borderColor: colorApariencia(apariencia, 'color_secundario'),
+                            borderRadius: `${apariencia.borde_radio ?? 10}px`,
+                          }}
+                        >
+                          Secundario
+                        </button>
+                      </div>
+                      <div
+                        className="apariencia-preview__card"
+                        style={{
+                          borderRadius: `${apariencia.borde_radio ?? 10}px`,
+                          borderColor: `${colorApariencia(apariencia, 'color_secundario')}33`,
+                        }}
+                      >
+                        <span style={{ color: colorApariencia(apariencia, 'color_secundario') }}>
+                          Tarjeta de contenido
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="apariencia-config__controls">
+                  <p className="apariencia-config__eyebrow">Personalización</p>
+                  <div className="apariencia-colores">
+                    {[
+                      ['color_primario', 'Color primario', 'Botones, enlaces activos'],
+                      ['color_secundario', 'Color secundario', 'Acentos y detalles'],
+                      ['color_terciario', 'Color terciario', 'Textos destacados'],
+                    ].map(([key, label, hint]) => {
+                      const valor = colorApariencia(apariencia, key);
+                      return (
+                        <label key={key} className="apariencia-color-field">
+                          <span className="apariencia-color-field__label">{label}</span>
+                          <span className="apariencia-color-field__hint">{hint}</span>
+                          <div className="apariencia-color-field__row">
+                            <input
+                              type="color"
+                              value={valor}
+                              onChange={(e) => setApariencia((a) => ({ ...a, [key]: e.target.value }))}
+                              aria-label={label}
+                            />
+                            <code className="apariencia-color-hex">{valor.toUpperCase()}</code>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <label className="apariencia-control">
+                    <span className="apariencia-control__label">Fuente principal</span>
+                    <select
+                      value={apariencia.fuente_principal || FUENTES[0]}
+                      onChange={(e) => setApariencia((a) => ({ ...a, fuente_principal: e.target.value }))}
+                    >
+                      {FUENTES.map((f) => <option key={f} value={f}>{f.split(',')[0]}</option>)}
+                    </select>
+                  </label>
+
+                  <label className="apariencia-control">
+                    <span className="apariencia-control__label">
+                      Tamaño fuente base
+                      <strong>{apariencia.tamano_fuente_base ?? 16}px</strong>
+                    </span>
+                    <input
+                      type="range"
+                      min="12"
+                      max="30"
+                      value={apariencia.tamano_fuente_base ?? 16}
+                      onChange={(e) => setApariencia((a) => ({ ...a, tamano_fuente_base: Number(e.target.value) }))}
+                      className="apariencia-range"
+                    />
+                  </label>
+
+                  <label className="apariencia-control">
+                    <span className="apariencia-control__label">
+                      Radio de bordes
+                      <strong>{apariencia.borde_radio ?? 10}px</strong>
+                    </span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="50"
+                      value={apariencia.borde_radio ?? 10}
+                      onChange={(e) => setApariencia((a) => ({ ...a, borde_radio: Number(e.target.value) }))}
+                      className="apariencia-range"
+                    />
+                  </label>
+                </div>
               </div>
 
-              <div className="usuario-form-grid">
-                {[
-                  ['color_primario', 'Color primario'],
-                  ['color_secundario', 'Color secundario'],
-                  ['color_terciario', 'Color terciario'],
-                ].map(([key, label]) => (
-                  <label key={key}>
-                    {label}
-                    <input type="color" value={apariencia[key] || '#000000'} onChange={(e) => setApariencia((a) => ({ ...a, [key]: e.target.value }))} />
-                  </label>
-                ))}
-                <label>
-                  Fuente principal
-                  <select value={apariencia.fuente_principal || FUENTES[0]} onChange={(e) => setApariencia((a) => ({ ...a, fuente_principal: e.target.value }))}>
-                    {FUENTES.map((f) => <option key={f} value={f}>{f.split(',')[0]}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Tamaño fuente base: {apariencia.tamano_fuente_base ?? 16}px
-                  <input type="range" min="12" max="30" value={apariencia.tamano_fuente_base ?? 16} onChange={(e) => setApariencia((a) => ({ ...a, tamano_fuente_base: Number(e.target.value) }))} />
-                </label>
-                <label>
-                  Radio de bordes: {apariencia.borde_radio ?? 10}px
-                  <input type="range" min="0" max="50" value={apariencia.borde_radio ?? 10} onChange={(e) => setApariencia((a) => ({ ...a, borde_radio: Number(e.target.value) }))} />
-                </label>
+              <div className="config-form__footer">
+                <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
               </div>
-              <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
             </form>
           )}
 
@@ -403,26 +500,62 @@ function ConfiguracionPage() {
           )}
 
           {tabActiva === 'mapa' && (
-            <form className="catalog-form config-form" onSubmit={(e) => {
-              e.preventDefault();
-              guardar('mapa', {
-                latitud: mapa.latitud === '' ? null : Number(mapa.latitud),
-                longitud: mapa.longitud === '' ? null : Number(mapa.longitud),
-              }, 'Coordenadas del mapa guardadas.');
-            }}
+            <form
+              className="catalog-form config-form config-mapa-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                guardar('mapa', {
+                  latitud: mapa.latitud === '' ? null : Number(mapa.latitud),
+                  longitud: mapa.longitud === '' ? null : Number(mapa.longitud),
+                }, 'Coordenadas del mapa guardadas.');
+              }}
             >
-              <div className="usuario-form-grid">
-                <label>
-                  Latitud base
-                  <input type="number" step="any" value={mapa.latitud} onChange={(e) => setMapa((m) => ({ ...m, latitud: e.target.value }))} />
-                </label>
-                <label>
-                  Longitud base
-                  <input type="number" step="any" value={mapa.longitud} onChange={(e) => setMapa((m) => ({ ...m, longitud: e.target.value }))} />
-                </label>
+              <p className="config-mapa-form__intro">
+                Defina el centro del mapa turístico del portal. Use la vista previa para verificar la ubicación
+                o haga clic en el mapa para ajustar las coordenadas.
+              </p>
+
+              <div className="config-mapa-layout">
+                <div className="config-mapa-layout__fields">
+                  <label>
+                    Latitud base
+                    <input
+                      type="number"
+                      step="any"
+                      value={mapa.latitud}
+                      onChange={(e) => setMapa((m) => ({ ...m, latitud: e.target.value }))}
+                      placeholder="-1.3306"
+                    />
+                  </label>
+                  <label>
+                    Longitud base
+                    <input
+                      type="number"
+                      step="any"
+                      value={mapa.longitud}
+                      onChange={(e) => setMapa((m) => ({ ...m, longitud: e.target.value }))}
+                      placeholder="-78.5414"
+                    />
+                  </label>
+                  <p className="section-note">
+                    Estas coordenadas centran el mapa en <strong>/mapa</strong> y otras vistas del portal público.
+                  </p>
+                </div>
+
+                <div className="config-mapa-layout__map">
+                  <p className="apariencia-config__eyebrow">Vista previa del centro</p>
+                  <LocationMapPicker
+                    latitud={mapa.latitud}
+                    longitud={mapa.longitud}
+                    height={360}
+                    onChange={({ latitud, longitud }) => setMapa({ latitud, longitud })}
+                  />
+                </div>
               </div>
-              <p className="section-note">Estas coordenadas centran el mapa del portal público.</p>
-              <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
+
+              <div className="config-form__footer">
+                <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
+              </div>
             </form>
           )}
         </div>

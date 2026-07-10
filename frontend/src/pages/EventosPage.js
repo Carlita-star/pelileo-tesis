@@ -5,7 +5,10 @@ import { ADMIN_PATHS } from '../routes/adminPaths';
 import { useToast } from '../context/ToastContext';
 import { useErrorToast } from '../hooks/useErrorToast';
 import { useListSearch } from '../hooks/useListSearch';
+import { useAdminDetail } from '../hooks/useAdminDetail';
 import { urlImagen } from '../services/media';
+import AdminDetailModal from '../components/admin/AdminDetailModal';
+import DownloadFichaButton from '../components/admin/DownloadFichaButton';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -28,6 +31,7 @@ function EventosPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const detail = useAdminDetail();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [items, setItems] = useState([]);
@@ -37,6 +41,7 @@ function EventosPage() {
   const [categoriaId, setCategoriaId] = useState('');
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -48,7 +53,7 @@ function EventosPage() {
     if (categoriaId) params.set('categoria_id', categoriaId);
     if (estado) params.set('estado', estado);
     params.set('page', String(page));
-    params.set('page_size', '10');
+    params.set('page_size', String(pageSize));
 
     try {
       const data = await apiRequest(`/api/admin/eventos/?${params.toString()}`);
@@ -73,7 +78,7 @@ function EventosPage() {
 
   useEffect(() => {
     fetchData();
-  }, [search, categoriaId, estado, page]);
+  }, [search, categoriaId, estado, page, pageSize]);
 
   useEffect(() => {
     setPage(1);
@@ -89,7 +94,7 @@ function EventosPage() {
   useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchData } });
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este evento? La acción es lógica.')) return;
+    if (!window.confirm('¿Enviar este evento a la papelera? Podrá restaurarlo después desde el dashboard.')) return;
     try {
       setLoading(true);
       await apiRequest(`/api/admin/eventos/${id}/`, { method: 'DELETE' });
@@ -202,6 +207,15 @@ function EventosPage() {
                     <div className="actions-cell-group">
                     <button
                       type="button"
+                      className="action-btn action-btn--view"
+                      onClick={() => detail.openDetail('evento', item.id)}
+                      title="Ver detalle"
+                    >
+                      Ver
+                    </button>
+                    <DownloadFichaButton type="evento" id={item.id} compact />
+                    <button
+                      type="button"
                       className="action-btn"
                       onClick={() => navigate(ADMIN_PATHS.eventoEditar(item.id))}
                       title="Editar"
@@ -222,8 +236,8 @@ function EventosPage() {
                       type="button"
                       className="action-btn"
                       onClick={() => handleDelete(item.id)}
-                      title="Eliminar"
-                      aria-label="Eliminar"
+                      title="Enviar a papelera"
+                      aria-label="Enviar a papelera"
                     >
                       🗑️
                     </button>
@@ -242,8 +256,31 @@ function EventosPage() {
           <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
           <span>Página {page} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>
+                {size} / página
+              </option>
+            ))}
+          </select>
         </div>
       </div>
+
+      <AdminDetailModal
+        isOpen={detail.isOpen}
+        type={detail.type}
+        id={detail.id}
+        data={detail.data}
+        images={detail.images}
+        loading={detail.loading}
+        error={detail.error}
+        imageError={detail.imageError}
+        onClose={detail.close}
+        onEdit={detail.id ? () => {
+          detail.close();
+          navigate(ADMIN_PATHS.eventoEditar(detail.id));
+        } : undefined}
+      />
     </section>
   );
 }

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest, getApiBase, getAuthHeaders } from '../../services/apiClient';
-import { getStoredUser, updateStoredUser } from '../../services/authStorage';
+import { getStoredUser, hasPanelAccess, updateStoredUser } from '../../services/authStorage';
+import { ADMIN_PATHS } from '../../routes/adminPaths';
 import { useToast } from '../../context/ToastContext';
 import { useErrorToast } from '../../hooks/useErrorToast';
+import PerfilVisitanteLayout from '../../components/publico/PerfilVisitanteLayout';
 
 function buildFotoUrl(fotoUrl) {
   if (!fotoUrl) return null;
@@ -22,7 +24,7 @@ function formatFecha(iso) {
   }
 }
 
-function PerfilPage() {
+function PerfilPage({ showRoles = true, publicMode = false }) {
   const toast = useToast();
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -153,6 +155,16 @@ function PerfilPage() {
   };
 
   if (loading) {
+    if (publicMode) {
+      return (
+        <div className="flex min-h-[50vh] items-center justify-center bg-slate-50">
+          <div className="flex flex-col items-center gap-3 text-slate-500">
+            <span className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-primario" />
+            <p className="text-sm font-medium">Cargando tu perfil…</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <section className="panel-card">
         <div className="table-spinner">
@@ -164,10 +176,42 @@ function PerfilPage() {
   }
 
   if (!perfil) {
+    if (publicMode) {
+      return (
+        <div className="mx-auto max-w-lg px-4 py-16 text-center">
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error || 'No se encontró el perfil.'}
+          </p>
+        </div>
+      );
+    }
     return (
       <section className="panel-card">
         <p className="status-error">{error || 'No se encontró el perfil.'}</p>
       </section>
+    );
+  }
+
+  if (publicMode) {
+    return (
+      <PerfilVisitanteLayout
+        perfil={perfil}
+        previewUrl={previewUrl}
+        form={form}
+        setForm={setForm}
+        passwordForm={passwordForm}
+        setPasswordForm={setPasswordForm}
+        pendingFile={pendingFile}
+        savingPerfil={savingPerfil}
+        savingPassword={savingPassword}
+        fileInputRef={fileInputRef}
+        onFileChange={handleFileChange}
+        onSavePerfil={handleSavePerfil}
+        onSavePassword={handleSavePassword}
+        formatFecha={formatFecha}
+        panelAccess={hasPanelAccess()}
+        adminPath={ADMIN_PATHS.dashboard}
+      />
     );
   }
 
@@ -233,19 +277,21 @@ function PerfilPage() {
                 <dt>Teléfono</dt>
                 <dd>{perfil.telefono || '—'}</dd>
               </div>
-              <div>
-                <dt>Roles</dt>
-                <dd>
-                  <div className="role-badges">
-                    {roles.length === 0 && <span>—</span>}
-                    {roles.map((rol) => (
-                      <span key={rol.nombre} className="role-badge">
-                        {rol.label || rol.nombre}
-                      </span>
-                    ))}
-                  </div>
-                </dd>
-              </div>
+              {showRoles && (
+                <div>
+                  <dt>Roles</dt>
+                  <dd>
+                    <div className="role-badges">
+                      {roles.length === 0 && <span>—</span>}
+                      {roles.map((rol) => (
+                        <span key={rol.nombre} className="role-badge">
+                          {rol.label || rol.nombre}
+                        </span>
+                      ))}
+                    </div>
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
         </div>

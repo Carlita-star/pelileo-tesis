@@ -7,7 +7,7 @@ import { ADMIN_PATHS } from '../../routes/adminPaths';
 import '../../styles/AtractivoForm.css';
 import { useToast } from '../../context/ToastContext';
 import { useErrorToast } from '../../hooks/useErrorToast';
-import { filterDigitsOnly, filterSignedDecimalInput } from '../../utils/formValidation';
+import { filterDigitsOnly, filterSignedDecimalInput, parseCoordinate } from '../../utils/formValidation';
 import { useSubmitLock } from '../../hooks/useSubmitLock';
 
 function toDatetimeLocal(iso) {
@@ -108,8 +108,8 @@ function EventoFormPage() {
     fecha_inicio: toIsoDatetime(formData.fecha_inicio),
     fecha_fin: toIsoDatetime(formData.fecha_fin),
     direccion: formData.direccion,
-    latitud: formData.latitud,
-    longitud: formData.longitud,
+    latitud: parseCoordinate(formData.latitud),
+    longitud: parseCoordinate(formData.longitud),
     costo: formData.costo === '' || formData.costo == null ? null : Number(formData.costo),
     organizador: formData.organizador,
     contacto: formData.contacto,

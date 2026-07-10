@@ -33,8 +33,11 @@ function LoginPage({ initialView = 'login' }) {
   }, [location.pathname, token]);
 
   useEffect(() => {
-    if (isAuthenticated() && hasPanelAccess()) {
+    if (!isAuthenticated()) return;
+    if (hasPanelAccess()) {
       navigate(ADMIN_PATHS.dashboard, { replace: true });
+    } else {
+      navigate('/', { replace: true });
     }
   }, [navigate]);
 
@@ -109,7 +112,15 @@ function LoginPage({ initialView = 'login' }) {
       }
 
       saveSession({ usuario: data.usuario, token: data.token });
-      navigate(ADMIN_PATHS.dashboard, { replace: true });
+
+      if (hasPanelAccess(data.usuario)) {
+        navigate(ADMIN_PATHS.dashboard, { replace: true });
+        return;
+      }
+
+      const from = location.state?.from;
+      const destino = from && !from.startsWith('/admin') ? from : '/';
+      navigate(destino, { replace: true });
     } catch (err) {
       setError('No se pudo conectar al servidor.');
     } finally {
@@ -246,23 +257,34 @@ function LoginPage({ initialView = 'login' }) {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-top">
+    <div className={`login-page${config.logoUrl ? ' login-page--with-logo' : ''}`}>
+      {config.logoUrl && (
+        <div
+          className="login-page__bg"
+          style={{ backgroundImage: `url(${config.logoUrl})` }}
+          aria-hidden
+        />
+      )}
+      <div className="login-page__overlay" aria-hidden />
+
+      <div className="login-page__content">
+        <div className="login-hero">
           <InstitutionalLogoMark
-            imgClassName="login-logo login-logo-img"
-            fallbackClassName="login-logo"
+            prefer="primary"
+            imgClassName="login-hero-logo login-hero-logo-img"
+            fallbackClassName="login-hero-logo"
             fallbackText="GAD"
           />
-          <div className="login-branding">
-            <p className="login-brand-name">{config.nombreSistema || 'Pelileo'}</p>
-            <p className="login-brand-subtitle">{config.eslogan || 'Panel administrativo turístico'}</p>
+          <div className="login-hero-text">
+            <p className="login-hero-name">{config.nombreSistema || 'Pelileo Turismo'}</p>
+            <p className="login-hero-sub">{config.eslogan || 'Portal turístico'}</p>
           </div>
         </div>
 
+        <div className="login-card">
         {view === 'login' && (
           <>
-            <h1>Iniciar sesión</h1>
+            <h1>Inicio de sesión</h1>
             <p className="login-description">Ingresa tus credenciales de personal autorizado del GAD.</p>
 
             <form className="login-form" onSubmit={handleLogin}>
@@ -300,7 +322,7 @@ function LoginPage({ initialView = 'login' }) {
               </label>
 
               <button type="submit" className="login-button" disabled={loading}>
-                {loading ? 'Ingresando...' : 'INGRESAR'}
+                {loading ? 'Ingresando...' : 'Iniciar sesión'}
               </button>
             </form>
 
@@ -513,6 +535,7 @@ function LoginPage({ initialView = 'login' }) {
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

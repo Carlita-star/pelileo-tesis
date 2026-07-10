@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -40,9 +40,9 @@ function iconoTipo(tipo) {
 }
 
 // Mini ícono coloreado para la etiqueta (al lado del nombre).
-function MiniIcono({ tipo }) {
+function MiniIcono({ tipo, size = 14 }) {
   const c = COLORES[tipo];
-  const base = { width: 14, height: 14, viewBox: '0 0 24 24', style: { flexShrink: 0 } };
+  const base = { width: size, height: size, viewBox: '0 0 24 24', style: { flexShrink: 0 } };
   if (tipo === 'atractivo') return (<svg {...base} fill={c}><path d="M4 18l5-8 3.5 5L15 12l5 6z" /></svg>);
   if (tipo === 'ruta') return (
     <svg {...base} fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round">
@@ -54,6 +54,25 @@ function MiniIcono({ tipo }) {
       <path d="M6 8h12l-1 12H7z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </svg>
   );
+}
+
+function AjustarVista({ puntos, centro }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!puntos.length) {
+      map.setView(centro, ZOOM_INICIAL);
+      return;
+    }
+    if (puntos.length === 1) {
+      map.setView([puntos[0].lat, puntos[0].lng], 14);
+      return;
+    }
+    const bounds = L.latLngBounds(puntos.map((p) => [p.lat, p.lng]));
+    map.fitBounds(bounds, { paddingTopLeft: [240, 72], paddingBottomRight: [280, 90], maxZoom: 14 });
+  }, [puntos, map, centro]);
+
+  return null;
 }
 
 function MapaGeneral() {
@@ -68,6 +87,13 @@ function MapaGeneral() {
   const [marcadores, setMarcadores] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [capas, setCapas] = useState({ atractivo: true, ruta: true, emprendimiento: true });
+  const [filtroAbierto, setFiltroAbierto] = useState(true);
+
+  const CAPAS_MAPA = [
+    { tipo: 'atractivo', etiqueta: 'Atractivos' },
+    { tipo: 'ruta', etiqueta: 'Rutas' },
+    { tipo: 'emprendimiento', etiqueta: 'Emprendimientos' },
+  ];
 
   useEffect(() => {
     let activo = true;
@@ -115,54 +141,76 @@ function MapaGeneral() {
   const toggle = (tipo) => setCapas((c) => ({ ...c, [tipo]: !c[tipo] }));
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
+    <div className="mapa-general mx-auto max-w-[1480px] px-4 py-8 sm:px-6 lg:px-8">
       <h1 className="text-3xl font-extrabold text-slate-800">Mapa turístico de Pelileo</h1>
       <p className="mt-2 text-slate-500">Explora atractivos, rutas y emprendimientos en un solo lugar.</p>
 
-      {/* z-0 mantiene todo el mapa por debajo del menú al hacer scroll */}
-      <div className="relative z-0 mt-6 h-[70vh] overflow-hidden rounded-2xl ring-1 ring-slate-200">
-        {/* Buscador */}
-        <input
-          type="text"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por nombre..."
-          className="absolute left-3 top-3 z-[1000] w-56 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow outline-none focus:border-primario"
-        />
-
-        {/* Panel de capas */}
-        <div className="absolute right-3 top-3 z-[1000] rounded-lg bg-white p-3 text-sm shadow ring-1 ring-slate-200">
-          {[
-            { tipo: 'atractivo', etiqueta: 'Atractivos' },
-            { tipo: 'ruta', etiqueta: 'Rutas' },
-            { tipo: 'emprendimiento', etiqueta: 'Emprendimientos' },
-          ].map((c) => (
-            <label key={c.tipo} className="flex cursor-pointer items-center gap-2 py-0.5">
-              <input type="checkbox" checked={capas[c.tipo]} onChange={() => toggle(c.tipo)} />
-              <span className="inline-block h-3 w-3 rounded-full" style={{ background: COLORES[c.tipo] }} />
-              {c.etiqueta}
-            </label>
-          ))}
+      <div className="mapa-general__canvas relative z-0 mt-6">
+        <div className="mapa-busqueda mapa-busqueda--overlay">
+          <svg className="mapa-busqueda__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3-3" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre..."
+            className="mapa-busqueda__input"
+          />
         </div>
 
-        {/* Botón de mi ubicación */}
+        <div className="mapa-filtro-panel mapa-filtro-panel--overlay">
+          <div className="mapa-filtro-panel__header">
+            <span>Filtros</span>
+            <button
+              type="button"
+              className="mapa-filtro-panel__toggle"
+              onClick={() => setFiltroAbierto((v) => !v)}
+              aria-expanded={filtroAbierto}
+              aria-label={filtroAbierto ? 'Contraer filtros' : 'Expandir filtros'}
+            >
+              {filtroAbierto ? '−' : '+'}
+            </button>
+          </div>
+          {filtroAbierto && (
+            <div className="mapa-filtro-panel__body">
+              {CAPAS_MAPA.map((c) => (
+                <label key={c.tipo} className="mapa-filtro-panel__item">
+                  <input
+                    type="checkbox"
+                    className="mapa-filtro-panel__checkbox"
+                    checked={capas[c.tipo]}
+                    onChange={() => toggle(c.tipo)}
+                  />
+                  <span className="mapa-filtro-panel__icon" style={{ color: COLORES[c.tipo] }}>
+                    <MiniIcono tipo={c.tipo} size={22} />
+                  </span>
+                  <span className="mapa-filtro-panel__label">{c.etiqueta}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button
+          type="button"
           onClick={miUbicacion}
-          className="absolute bottom-4 right-3 z-[1000] rounded-lg bg-primario px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-primario-oscuro"
+          className="mapa-ubicacion-btn absolute bottom-5 right-4 z-[1000] rounded-xl bg-primario px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-primario-oscuro"
         >
           Mi ubicación
         </button>
 
-        <MapContainer center={centro} zoom={ZOOM_INICIAL} ref={mapRef} className="h-full w-full">
+        <MapContainer center={centro} zoom={ZOOM_INICIAL} ref={mapRef} className="mapa-general__map h-full w-full">
           <TileLayer
             attribution='&copy; colaboradores de OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          <AjustarVista puntos={visibles} centro={centro} />
           {visibles.map((m, i) => (
-            <Marker key={i} position={[m.lat, m.lng]} icon={iconoTipo(m.tipo)}>
-              {/* Etiqueta permanente con ícono + nombre */}
-              <Tooltip permanent direction="right" offset={[14, 0]}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600 }}>
+            <Marker key={`${m.tipo}-${m.to}-${i}`} position={[m.lat, m.lng]} icon={iconoTipo(m.tipo)}>
+              <Tooltip permanent direction="top" offset={[0, -18]} className="mapa-tooltip-nombre">
+                <span className="mapa-tooltip-nombre__inner">
                   <MiniIcono tipo={m.tipo} />
                   {m.nombre}
                 </span>

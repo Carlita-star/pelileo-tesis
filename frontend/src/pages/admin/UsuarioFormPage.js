@@ -11,7 +11,7 @@ const ROL_LABELS = {
   visitante: 'Visitante',
 };
 
-const ROLES_PANEL = ['administrador', 'gestor_turistico'];
+const ORDEN_ROLES = ['visitante', 'administrador', 'gestor_turistico'];
 
 function formatRol(nombre) {
   return ROL_LABELS[nombre] || nombre;
@@ -21,6 +21,12 @@ function buildFotoUrl(fotoUrl) {
   if (!fotoUrl) return null;
   if (fotoUrl.startsWith('http')) return fotoUrl;
   return `${getApiBase()}${fotoUrl}`;
+}
+
+function ordenarRoles(lista) {
+  return [...lista].sort(
+    (a, b) => ORDEN_ROLES.indexOf(a.nombre) - ORDEN_ROLES.indexOf(b.nombre),
+  );
 }
 
 function UsuarioFormPage() {
@@ -44,7 +50,7 @@ function UsuarioFormPage() {
     telefono: '',
     password: '',
     passwordConfirm: '',
-    rol_ids: [],
+    rol_id: null,
     activo: true,
   });
 
@@ -57,9 +63,12 @@ function UsuarioFormPage() {
     setError('');
     try {
       const catalog = await apiRequest('/api/admin/usuarios/form-data/');
-      setRoles(catalog.roles || []);
+      const catalogRoles = ordenarRoles(catalog.roles || []);
+      setRoles(catalogRoles);
+      const visitanteId = catalogRoles.find((r) => r.nombre === 'visitante')?.id ?? null;
 
       if (!usuarioId) {
+        setForm((prev) => ({ ...prev, rol_id: visitanteId }));
         setLoading(false);
         return;
       }
@@ -73,7 +82,7 @@ function UsuarioFormPage() {
         telefono: data.telefono || '',
         password: '',
         passwordConfirm: '',
-        rol_ids: data.rol_ids || [],
+        rol_id: data.rol_ids?.[0] ?? visitanteId,
         activo: data.activo !== false,
       });
       setPreviewUrl(buildFotoUrl(data.foto_url));
@@ -85,15 +94,6 @@ function UsuarioFormPage() {
   };
 
   useErrorToast(error, { action: { label: 'Reintentar', onClick: loadData } });
-
-  const toggleRol = (rolId) => {
-    setForm((prev) => {
-      const ids = prev.rol_ids.includes(rolId)
-        ? prev.rol_ids.filter((r) => r !== rolId)
-        : [...prev.rol_ids, rolId];
-      return { ...prev, rol_ids: ids };
-    });
-  };
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -127,6 +127,10 @@ function UsuarioFormPage() {
       setError('Complete los campos obligatorios.');
       return;
     }
+    if (!form.rol_id) {
+      setError('Seleccione un rol para el usuario.');
+      return;
+    }
     if (!isEdit) {
       if (!form.password) {
         setError('La contraseña es obligatoria al crear un usuario.');
@@ -146,7 +150,7 @@ function UsuarioFormPage() {
         username: form.username.trim(),
         email: form.email.trim(),
         telefono: form.telefono.trim(),
-        rol_ids: form.rol_ids,
+        rol_ids: [form.rol_id],
         activo: form.activo,
       };
       if (!isEdit) {
@@ -199,7 +203,7 @@ function UsuarioFormPage() {
           <p className="section-description">
             {isEdit
               ? 'Actualice los datos del usuario. Para cambiar la contraseña use el flujo de recuperación.'
-              : 'Registre un usuario del portal. Se asignará automáticamente el rol visitante.'}
+              : 'Registre un usuario. Por defecto se asigna el rol visitante.'}
           </p>
         </div>
         <button type="button" className="secondary-button" onClick={() => navigate(ADMIN_PATHS.usuarios)}>
@@ -299,29 +303,23 @@ function UsuarioFormPage() {
         )}
 
         <fieldset className="roles-fieldset">
-          <legend>Roles asignados</legend>
+          <legend>Rol asignado *</legend>
           <p className="section-note">
-            Todos los usuarios tienen el rol <strong>Visitante</strong> del portal turístico.
-            Marque roles adicionales solo si debe acceder al panel administrativo.
+            Cada usuario tiene un único rol. Elija visitante para acceso solo al portal,
+            o un rol de panel si debe administrar contenido.
           </p>
           <div className="roles-checkboxes">
-            <label className="checkbox-label">
-              <input type="checkbox" checked disabled readOnly />
-              {formatRol('visitante')}
-              <span className="section-note"> (automático)</span>
-            </label>
-            {roles
-              .filter((rol) => ROLES_PANEL.includes(rol.nombre))
-              .map((rol) => (
-                <label key={rol.id} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.rol_ids.includes(rol.id)}
-                    onChange={() => toggleRol(rol.id)}
-                  />
-                  {formatRol(rol.nombre)}
-                </label>
-              ))}
+            {roles.map((rol) => (
+              <label key={rol.id} className="checkbox-label">
+                <input
+                  type="radio"
+                  name="rol_usuario"
+                  checked={form.rol_id === rol.id}
+                  onChange={() => setForm((f) => ({ ...f, rol_id: rol.id }))}
+                />
+                {formatRol(rol.nombre)}
+              </label>
+            ))}
           </div>
         </fieldset>
 

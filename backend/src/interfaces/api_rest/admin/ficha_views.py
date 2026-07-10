@@ -41,3 +41,9 @@ def admin_ruta_ficha_descargar(request, ruta_id):
 @admin_panel_required
 def admin_emprendimiento_ficha_descargar(request, emprendimiento_id):
     return _descargar_ficha(request, 'emprendimiento', emprendimiento_id)
+
+
+@require_GET
+@admin_panel_required
+def admin_evento_ficha_descargar(request, evento_id):
+    return _descargar_ficha(request, 'evento', evento_id)

@@ -19,6 +19,7 @@ from .views import (
     emprendimientos_detail,
     usuarios_list,
     eventos_list,
+    eventos_detail,
     admin_evento_detail,
     publicaciones_list,
     reportes_list,
@@ -27,6 +28,8 @@ from .views import (
     configuracion_list,
 )
 from .auth_views import register, login, password_reset_request, password_reset_confirm
+from .resenas_views import resenas_list, resenas_create, resenas_update
+from .admin.resenas_views import admin_resenas_list, admin_resenas_cambiar_activo
 from .admin.rutas_views import (
     admin_rutas_list,
     admin_ruta_delete,
@@ -99,11 +102,17 @@ from .admin.ficha_views import (
     admin_atractivo_ficha_descargar,
     admin_ruta_ficha_descargar,
     admin_emprendimiento_ficha_descargar,
+    admin_evento_ficha_descargar,
 )
 from .admin.errores_views import (
     admin_errores_list,
     admin_errores_cambiar_estado,
     admin_errores_reportar_cliente,
+)
+from .admin.papelera_views import (
+    admin_papelera_list,
+    admin_papelera_restaurar,
+    admin_papelera_eliminar_permanente,
 )
 
 urlpatterns = [
@@ -144,6 +153,7 @@ urlpatterns = [
     path('api/admin/eventos/<int:evento_id>/form-data/', admin_evento_get_for_edit, name='api-admin-evento-form-data-edit'),
     path('api/admin/eventos/<int:evento_id>/edit/', admin_evento_save, name='api-admin-evento-edit'),
     path('api/admin/eventos/<int:evento_id>/cambiar-estado/', admin_evento_cambiar_estado, name='api-admin-evento-cambiar-estado'),
+    path('api/admin/eventos/<int:evento_id>/ficha/descargar/', admin_evento_ficha_descargar, name='api-admin-evento-ficha'),
     path('api/admin/catalogos/<str:tipo>/', admin_catalogo_list, name='api-admin-catalogo-list'),
     path('api/admin/catalogos/<str:tipo>/new/', admin_catalogo_save, name='api-admin-catalogo-create'),
     path('api/admin/catalogos/<str:tipo>/<int:item_id>/', admin_catalogo_get, name='api-admin-catalogo-get'),
@@ -184,6 +194,10 @@ urlpatterns = [
     path('api/emprendimientos/<int:emp_id>/', emprendimientos_detail, name='api-emprendimientos-detail'),
     path('api/usuarios/', usuarios_list, name='api-usuarios'),
     path('api/eventos/', eventos_list, name='api-eventos'),
+    path('api/eventos/<int:evento_id>/', eventos_detail, name='api-eventos-detail'),
+    path('api/resenas/', resenas_list, name='api-resenas-list'),
+    path('api/resenas/crear/', resenas_create, name='api-resenas-create'),
+    path('api/resenas/<int:resena_id>/', resenas_update, name='api-resenas-update'),
     path('api/admin/eventos/<int:evento_id>/detalle/', admin_evento_detail, name='api-admin-evento-detail'),
     path('api/publicaciones/', publicaciones_list, name='api-publicaciones'),
     path('api/reportes/', reportes_list, name='api-reportes'),
@@ -193,6 +207,11 @@ urlpatterns = [
     path('api/admin/errores/', admin_errores_list, name='api-admin-errores-list'),
     path('api/admin/errores/reportar/', admin_errores_reportar_cliente, name='api-admin-errores-reportar'),
     path('api/admin/errores/<int:error_id>/estado/', admin_errores_cambiar_estado, name='api-admin-errores-estado'),
+    path('api/admin/papelera/', admin_papelera_list, name='api-admin-papelera-list'),
+    path('api/admin/papelera/<str:tipo>/<int:item_id>/restaurar/', admin_papelera_restaurar, name='api-admin-papelera-restaurar'),
+    path('api/admin/papelera/<str:tipo>/<int:item_id>/permanente/', admin_papelera_eliminar_permanente, name='api-admin-papelera-permanente'),
+    path('api/admin/resenas/', admin_resenas_list, name='api-admin-resenas-list'),
+    path('api/admin/resenas/<int:resena_id>/activo/', admin_resenas_cambiar_activo, name='api-admin-resenas-activo'),
     path('api/auth/register/', register, name='api-auth-register'),
     path('api/auth/login/', login, name='api-auth-login'),
     path('api/auth/password-reset/', password_reset_request, name='api-auth-password-reset'),

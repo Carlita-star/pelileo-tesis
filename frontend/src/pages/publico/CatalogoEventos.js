@@ -9,6 +9,7 @@ function CatalogoEventos() {
   const [error, setError] = useState(null);
   const [categoria, setCategoria] = useState('');
   const [estado, setEstado] = useState('');
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -25,13 +26,16 @@ function CatalogoEventos() {
 
   const filtrados = useMemo(() => {
     return eventos.filter((e) => {
+      const coincideBusqueda = (e.nombre ?? '').toLowerCase().includes(busqueda.toLowerCase())
+        || (e.descripcion ?? '').toLowerCase().includes(busqueda.toLowerCase())
+        || (e.direccion ?? '').toLowerCase().includes(busqueda.toLowerCase());
       const coincideCategoria = !categoria || e.categoria === categoria;
       const coincideEstado = !estado || estadoEvento(e.fecha_inicio, e.fecha_fin) === estado;
-      return coincideCategoria && coincideEstado;
+      return coincideBusqueda && coincideCategoria && coincideEstado;
     });
-  }, [eventos, categoria, estado]);
+  }, [eventos, busqueda, categoria, estado]);
 
-  const hayFiltros = categoria || estado;
+  const hayFiltros = busqueda || categoria || estado;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -43,6 +47,16 @@ function CatalogoEventos() {
       </div>
 
       <div className="mb-8 flex flex-wrap items-end gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+        <div className="min-w-[200px] flex-1">
+          <label className="mb-1 block text-xs font-semibold text-slate-500">Buscar</label>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Nombre, lugar o descripción..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-primario focus:ring-1 focus:ring-primario"
+          />
+        </div>
         <div className="min-w-[160px]">
           <label className="mb-1 block text-xs font-semibold text-slate-500">Categoría</label>
           <select
@@ -69,7 +83,7 @@ function CatalogoEventos() {
         </div>
         {hayFiltros && (
           <button
-            onClick={() => { setCategoria(''); setEstado(''); }}
+            onClick={() => { setBusqueda(''); setCategoria(''); setEstado(''); }}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
           >
             Limpiar filtros

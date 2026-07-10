@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { urlImagen } from '../../services/media';
 import { slugify } from '../../services/slug';
+import { ResumenEstrellas } from './EstrellasCalificacion';
 import { abrirComoLlegar } from './ComoLlegar';
 import { SocialIconLink } from './SocialIconLink';
 
@@ -56,7 +57,7 @@ function FilaContacto({ tipo, href, children }) {
   );
 }
 
-function BloqueInformacion({ nombre, categoria, servicios, telefono, email, ubicacion, atractivoCercano, redes }) {
+function BloqueInformacion({ nombre, categoria, servicios, telefono, email, ubicacion, atractivoCercano, redes, promedioCalificacion, totalResenas }) {
   const hayContacto = telefono || email || ubicacion || atractivoCercano;
 
   return (
@@ -68,6 +69,9 @@ function BloqueInformacion({ nombre, categoria, servicios, telefono, email, ubic
             {categoria}
           </span>
         )}
+        <div className="mt-2">
+          <ResumenEstrellas promedio={promedioCalificacion} total={totalResenas} />
+        </div>
       </div>
 
       {servicios.length > 0 && (
@@ -270,6 +274,8 @@ function TarjetaEmprendimientoDirectorio({ emprendimiento }) {
         ubicacion={ubicacion}
         atractivoCercano={atractivo_cercano}
         redes={redes}
+        promedioCalificacion={emprendimiento.promedio_calificacion}
+        totalResenas={emprendimiento.total_resenas}
       />
 
       <div className="mt-5 flex gap-3 pt-1">

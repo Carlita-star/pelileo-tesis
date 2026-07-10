@@ -60,6 +60,26 @@ class DjangoEventoAdminRepository(EventoAdminRepositoryPort):
         return parsed
 
     @staticmethod
+    def _to_float(value) -> Optional[float]:
+        if value is None or value == '':
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        try:
+            return float(str(value).replace(',', '.').strip())
+        except (TypeError, ValueError):
+            raise ValueError('Valor numérico inválido.')
+
+    @staticmethod
+    def _to_int(value) -> Optional[int]:
+        if value is None or value == '':
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            raise ValueError('Valor entero inválido.')
+
+    @staticmethod
     def _registrar_auditoria(
         usuario_id: Optional[int],
         evento_id: int,
@@ -241,11 +261,15 @@ class DjangoEventoAdminRepository(EventoAdminRepositoryPort):
         if fecha_inicio and fecha_fin:
             EventoRules.validar_fechas(fecha_inicio, fecha_fin)
 
-        if data.costo is not None and data.costo < 0:
-            EventoRules.validar_precio(data.costo)
+        costo = self._to_float(data.costo)
+        latitud = self._to_float(data.latitud)
+        longitud = self._to_float(data.longitud)
 
-        if data.latitud is not None and data.longitud is not None:
-            EventoRules.validar_coordenadas(data.latitud, data.longitud)
+        if costo is not None:
+            EventoRules.validar_precio(costo)
+
+        if latitud is not None and longitud is not None:
+            EventoRules.validar_coordenadas(latitud, longitud)
 
         if data.id:
             item = Evento.objects.select_related('estado_publicacion').get(id=data.id, activo=True)
@@ -264,13 +288,13 @@ class DjangoEventoAdminRepository(EventoAdminRepositoryPort):
 
         item.nombre = nombre
         item.descripcion = data.descripcion
-        item.categoria_id = self._resolver_categoria_id(data.categoria_id)
+        item.categoria_id = self._resolver_categoria_id(self._to_int(data.categoria_id))
         item.fecha_inicio = fecha_inicio
         item.fecha_fin = fecha_fin
         item.direccion = data.direccion
-        item.latitud = data.latitud
-        item.longitud = data.longitud
-        item.costo = data.costo
+        item.latitud = latitud
+        item.longitud = longitud
+        item.costo = costo
         item.organizador = data.organizador
         item.contacto = data.contacto
         item.estado_publicacion = estado

@@ -19,9 +19,10 @@ const FICHA_ENDPOINTS = {
   atractivo: (id, formato = 'pdf') => `/api/admin/atractivos/${id}/ficha/descargar/?formato=${formato}`,
   ruta: (id, formato = 'pdf') => `/api/admin/rutas/${id}/ficha/descargar/?formato=${formato}`,
   emprendimiento: (id, formato = 'pdf') => `/api/admin/emprendimientos/${id}/ficha/descargar/?formato=${formato}`,
+  evento: (id, formato = 'pdf') => `/api/admin/eventos/${id}/ficha/descargar/?formato=${formato}`,
 };
 
-export const FICHA_SUPPORTED_TYPES = new Set(['atractivo', 'ruta', 'emprendimiento']);
+export const FICHA_SUPPORTED_TYPES = new Set(['atractivo', 'ruta', 'emprendimiento', 'evento']);
 
 export const ENTITY_LABELS = {
   atractivo: 'Atractivo turístico',

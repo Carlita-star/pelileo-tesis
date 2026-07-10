@@ -28,6 +28,8 @@ def build_media_url(path: str | None, request=None) -> str | None:
 
     api_base = getattr(settings, 'API_PUBLIC_URL', '').rstrip('/')
     if api_base:
+        if not api_base.startswith(('http://', 'https://')):
+            api_base = f'https://{api_base.lstrip("/")}'
         return f'{api_base}{media_path}'
 
     if request is not None:

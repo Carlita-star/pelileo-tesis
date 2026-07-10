@@ -65,6 +65,11 @@ function buildAppErrorFromResponse(data, status, path) {
 
 function handleAuthFailure(status, path) {
   if (path.includes('/auth/login')) return;
+  if (path.includes('/admin/perfil')) {
+    clearSession();
+    window.location.assign('/admin/login?sesion=expirada');
+    return;
+  }
   clearSession();
   const params = new URLSearchParams({
     sesion: status === 403 ? 'sin-permisos' : 'expirada',

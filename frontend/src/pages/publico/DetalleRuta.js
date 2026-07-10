@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { obtenerRutaPorId } from '../../services/rutas.service';
+import GaleriaDetalle from '../../components/publico/GaleriaDetalle';
 import { urlImagen } from '../../services/media';
 import MapaRuta from '../../components/publico/MapaRuta';
 import BotonComoLlegar from '../../components/publico/ComoLlegar';
 import TarjetaCercano from '../../components/publico/TarjetaCercano';
+import SeccionResenas from '../../components/publico/SeccionResenas';
+import '../../components/publico/resenas-publico.css';
 import { colorDificultad } from '../../components/publico/TarjetaRuta';
 
 // P-05 — Detalle de ruta (/rutas/:id)  —  ESTE ARCHIVO VA EN: src/pages/publico/
@@ -13,12 +16,11 @@ function DetalleRuta() {
   const [ruta, setRuta] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
-  const [imgActiva, setImgActiva] = useState(0);
 
   useEffect(() => {
     let activo = true;
     setCargando(true);
-    obtenerRutaPorId(parseInt(id, 10))
+    obtenerRutaPorId(parseInt(String(id).split('-')[0], 10))
       .then((datos) => { if (activo) { setRuta(datos); setCargando(false); } })
       .catch((e) => { if (activo) { setError(e.message); setCargando(false); } });
     return () => { activo = false; };
@@ -87,25 +89,9 @@ function DetalleRuta() {
         <span className="text-slate-700">{ruta.nombre}</span>
       </nav>
 
-      {/* GALERÍA DE LA RUTA */}
       {imagenes.length > 0 && (
         <div className="mb-6">
-          <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
-            <img src={imagenes[imgActiva]} alt={ruta.nombre} className="h-80 w-full object-cover" />
-          </div>
-          {imagenes.length > 1 && (
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-              {imagenes.map((src, i) => (
-                <button
-                  key={i}
-                  onClick={() => setImgActiva(i)}
-                  className={`h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg ring-2 transition ${i === imgActiva ? 'ring-primario' : 'ring-transparent hover:ring-slate-300'}`}
-                >
-                  <img src={src} alt={`${ruta.nombre} ${i + 1}`} className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
+          <GaleriaDetalle imagenes={imagenes} titulo={ruta.nombre} />
         </div>
       )}
 
@@ -194,7 +180,11 @@ function DetalleRuta() {
         </section>
       )}
 
-      <div className="mt-12">
+      {ruta.id && (
+        <SeccionResenas entidadTipo="ruta" entidadId={ruta.id} />
+      )}
+
+      <div className="detalle-volver-bar">
         <Link to="/rutas" className="text-sm font-medium text-primario hover:underline">← Volver a rutas</Link>
       </div>
     </div>

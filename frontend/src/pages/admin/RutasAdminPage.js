@@ -62,7 +62,7 @@ function RutasAdminPage() {
   useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchRutas } });
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta ruta? La acción es lógica.')) return;
+    if (!window.confirm('¿Enviar esta ruta a la papelera? Podrá restaurarla después desde el dashboard.')) return;
     try {
       setLoading(true);
       await apiRequest(`/api/admin/rutas/${id}/`, { method: 'DELETE' });
@@ -157,7 +157,7 @@ function RutasAdminPage() {
                     <DownloadFichaButton type="ruta" id={item.id} compact />
                     <button type="button" className="action-btn" onClick={() => navigate(ADMIN_PATHS.rutaEditar(item.id))} title="Editar">✏️</button>
                     <button type="button" className="action-btn" onClick={() => handleToggleEstado(item)} title="Cambiar estado">🔁</button>
-                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Eliminar">🗑️</button>
+                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Enviar a papelera">🗑️</button>
                     </div>
                   </td>
                 </tr>
@@ -173,6 +173,13 @@ function RutasAdminPage() {
           <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
           <span>Página {page} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>
+                {size} / página
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

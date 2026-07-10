@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { getApiBase } from '../../services/apiClient';
+import { normalizeMediaUrl } from '../../services/media';
 import { NA } from '../../utils/detailFormatters';
 
 function resolveImageUrl(item) {
-  if (item.url?.startsWith('http')) return item.url;
-  return `${getApiBase()}${item.url || `/media/${item.archivo}`}`;
+  return normalizeMediaUrl(item.url || item.archivo);
 }
 
 function DetailImageGallery({ images = [], error = null }) {
+  const [imgActiva, setImgActiva] = useState(0);
   const [lightbox, setLightbox] = useState(null);
   const [brokenIds, setBrokenIds] = useState(new Set());
 
@@ -20,35 +20,53 @@ function DetailImageGallery({ images = [], error = null }) {
   }
 
   const visible = images.filter((img) => !brokenIds.has(img.id));
+  const activa = visible[imgActiva] ?? visible[0];
 
   return (
     <>
-      <div className="admin-detail-gallery">
-        {images.map((img) => (
+      <div className="admin-detail-gallery-featured">
+        {activa ? (
           <button
-            key={img.id}
             type="button"
-            className="admin-detail-gallery-item"
-            onClick={() => !brokenIds.has(img.id) && setLightbox(img)}
-            aria-label={img.titulo || 'Ampliar imagen'}
+            className="admin-detail-gallery-hero"
+            onClick={() => setLightbox(activa)}
+            aria-label="Ampliar imagen principal"
           >
-            {brokenIds.has(img.id) ? (
+            {brokenIds.has(activa.id) ? (
               <span className="admin-detail-gallery-broken">Error al cargar</span>
             ) : (
               <img
-                src={resolveImageUrl(img)}
-                alt={img.titulo || 'Imagen del registro'}
-                loading="lazy"
-                onError={() => setBrokenIds((prev) => new Set(prev).add(img.id))}
+                src={resolveImageUrl(activa)}
+                alt={activa.titulo || 'Imagen del registro'}
+                onError={() => setBrokenIds((prev) => new Set(prev).add(activa.id))}
               />
             )}
-            {img.principal && <span className="admin-detail-gallery-badge">Principal</span>}
+            {activa.principal && <span className="admin-detail-gallery-badge">Principal</span>}
           </button>
-        ))}
+        ) : (
+          <p className="admin-detail-image-error">No se pudieron cargar las imágenes del registro.</p>
+        )}
+
+        {visible.length > 1 && (
+          <div className="admin-detail-gallery-thumbs">
+            {visible.map((img, i) => (
+              <button
+                key={img.id}
+                type="button"
+                className={`admin-detail-gallery-thumb${i === imgActiva ? ' is-active' : ''}`}
+                onClick={() => setImgActiva(i)}
+                aria-label={img.titulo || `Ver imagen ${i + 1}`}
+              >
+                <img
+                  src={resolveImageUrl(img)}
+                  alt={img.titulo || 'Miniatura'}
+                  loading="lazy"
+                />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      {visible.length === 0 && images.length > 0 && (
-        <p className="admin-detail-image-error">No se pudieron cargar las imágenes del registro.</p>
-      )}
 
       {lightbox && (
         <div

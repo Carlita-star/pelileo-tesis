@@ -79,12 +79,40 @@ class DjangoMultimediaRepository(MultimediaRepositoryPort):
         item.save(update_fields=['principal'])
         return True
 
+    @staticmethod
+    def _eliminar_archivo_fisico(archivo: str | None) -> None:
+        if not archivo:
+            return
+        ruta = settings.MEDIA_ROOT / str(archivo).lstrip('/')
+        try:
+            if ruta.is_file():
+                ruta.unlink()
+        except OSError:
+            pass
+
     def eliminar_logico(self, multimedia_id: int) -> bool:
-        item = Multimedia.objects.filter(id=multimedia_id).first()
+        item = Multimedia.objects.filter(id=multimedia_id, activo=True).first()
         if not item:
             return False
-        item.activo = False
-        item.save(update_fields=['activo'])
+
+        era_principal = item.principal
+        entidad_tipo = item.entidad_tipo
+        entidad_id = item.entidad_id
+        archivo = item.archivo
+
+        self._eliminar_archivo_fisico(archivo)
+        item.delete()
+
+        if era_principal:
+            siguiente = Multimedia.objects.filter(
+                entidad_tipo=entidad_tipo,
+                entidad_id=entidad_id,
+                activo=True,
+            ).order_by('orden', 'id').first()
+            if siguiente:
+                siguiente.principal = True
+                siguiente.save(update_fields=['principal'])
+
         return True
 
     def reordenar(self, entidad_tipo: str, entidad_id: int, orden_ids: List[int]) -> bool:

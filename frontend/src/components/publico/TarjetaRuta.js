@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { urlImagen } from '../../services/media';
 import { slugify } from '../../services/slug';
+import { ResumenEstrellas } from './EstrellasCalificacion';
 import MiniMapaRutaTarjeta from './MiniMapaRutaTarjeta';
 
 export function colorDificultad(d) {
@@ -88,6 +89,9 @@ function TarjetaRuta({ ruta }) {
 
       <div className="flex flex-1 flex-col px-5 pb-5 pt-4">
         <h3 className="text-lg font-extrabold leading-tight text-slate-900">{nombre}</h3>
+        <div className="mt-1.5">
+          <ResumenEstrellas promedio={ruta.promedio_calificacion} total={ruta.total_resenas} />
+        </div>
 
         {metaPartes.length > 0 && (
           <p className="mt-1.5 text-sm font-medium text-slate-600">

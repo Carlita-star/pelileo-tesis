@@ -15,8 +15,12 @@ import DetalleRuta from './pages/publico/DetalleRuta';
 import CatalogoEmprendimientos from './pages/publico/CatalogoEmprendimientos';
 import DetalleEmprendimiento from './pages/publico/DetalleEmprendimiento';
 import CatalogoEventos from './pages/publico/CatalogoEventos';
+import DetalleEvento from './pages/publico/DetalleEvento';
 import MapaGeneral from './pages/publico/MapaGeneral';
+import CreditosPage from './pages/publico/CreditosPage';
 import NotFoundPage from './pages/publico/NotFoundPage';
+import MiCuentaPage from './pages/publico/MiCuentaPage';
+import PublicAuthRoute from './routes/PublicAuthRoute';
 import AdminRoutes from './routes/AdminRoutes';
 
 export default function App() {
@@ -35,7 +39,17 @@ export default function App() {
             <Route path="emprendimientos" element={<CatalogoEmprendimientos />} />
             <Route path="emprendimientos/:id" element={<DetalleEmprendimiento />} />
             <Route path="eventos" element={<CatalogoEventos />} />
+            <Route path="eventos/:id" element={<DetalleEvento />} />
             <Route path="mapa" element={<MapaGeneral />} />
+            <Route path="desarrollado-por" element={<CreditosPage />} />
+            <Route
+              path="mi-cuenta"
+              element={(
+                <PublicAuthRoute>
+                  <MiCuentaPage />
+                </PublicAuthRoute>
+              )}
+            />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
 

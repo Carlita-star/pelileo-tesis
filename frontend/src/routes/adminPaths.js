@@ -21,7 +21,9 @@ export const ADMIN_PATHS = {
   configuracion: '/admin/configuracion',
   auditoria: '/admin/auditoria',
   errores: '/admin/errores',
+  resenas: '/admin/resenas',
   reportes: '/admin/reportes',
+  papelera: '/admin/papelera',
   sinPermiso: '/admin/sin-permiso',
   perfil: '/admin/perfil',
 };

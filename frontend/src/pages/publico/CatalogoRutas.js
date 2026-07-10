@@ -8,6 +8,7 @@ function CatalogoRutas() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [dificultad, setDificultad] = useState('');
+  const [busqueda, setBusqueda] = useState('');
 
   useEffect(() => {
     let activo = true;
@@ -24,9 +25,15 @@ function CatalogoRutas() {
   );
 
   const filtradas = useMemo(
-    () => rutas.filter((r) => !dificultad || r.dificultad === dificultad),
-    [rutas, dificultad]
+    () => rutas.filter((r) => {
+      const coincideBusqueda = (r.nombre ?? '').toLowerCase().includes(busqueda.toLowerCase());
+      const coincideDificultad = !dificultad || r.dificultad === dificultad;
+      return coincideBusqueda && coincideDificultad;
+    }),
+    [rutas, busqueda, dificultad]
   );
+
+  const hayFiltros = busqueda || dificultad;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -37,9 +44,18 @@ function CatalogoRutas() {
         </p>
       </div>
 
-      {/* Filtro por dificultad */}
-      {dificultades.length > 0 && (
-        <div className="mb-8 flex flex-wrap items-end gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+      <div className="mb-8 flex flex-wrap items-end gap-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+        <div className="min-w-[200px] flex-1">
+          <label className="mb-1 block text-xs font-semibold text-slate-500">Buscar</label>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Nombre de la ruta..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-primario focus:ring-1 focus:ring-primario"
+          />
+        </div>
+        {dificultades.length > 0 && (
           <div className="min-w-[200px]">
             <label className="mb-1 block text-xs font-semibold text-slate-500">Dificultad</label>
             <select
@@ -51,16 +67,16 @@ function CatalogoRutas() {
               {dificultades.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
-          {dificultad && (
-            <button
-              onClick={() => setDificultad('')}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
-            >
-              Limpiar filtro
-            </button>
-          )}
-        </div>
-      )}
+        )}
+        {hayFiltros && (
+          <button
+            onClick={() => { setBusqueda(''); setDificultad(''); }}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
 
       {error && (
         <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">{error}</div>

@@ -29,30 +29,33 @@ class DjangoDashboardRepository(DashboardRepositoryPort):
         borrador = self._estado_por_codigo('borrador')
         inactivo = self._estado_por_codigo('inactivo')
 
-        def contar_por_estado(model):
-            if not publicado:
-                return 0
-            return model.objects.filter(estado_publicacion=publicado, activo=True).count()
+        modelos = [Atractivo, Ruta, Emprendimiento, Evento]
 
         publicados = sum(
             model.objects.filter(estado_publicacion=publicado, activo=True).count()
-            for model in [Atractivo, Ruta, Emprendimiento]
+            for model in modelos
         ) if publicado else 0
 
         borradores = sum(
             model.objects.filter(estado_publicacion=borrador, activo=True).count()
-            for model in [Atractivo, Ruta, Emprendimiento]
+            for model in modelos
         ) if borrador else 0
 
         inactivos = sum(
+            model.objects.filter(estado_publicacion=inactivo, activo=True).count()
+            for model in modelos
+        ) if inactivo else 0
+
+        papelera = sum(
             model.objects.filter(activo=False).count()
-            for model in [Atractivo, Ruta, Emprendimiento]
+            for model in modelos
         )
 
         return {
             'publicados': publicados,
             'en_borrador': borradores,
             'inactivos': inactivos,
+            'papelera': papelera,
         }
 
     def listar_cambios_recientes(self, limite: int = 5) -> List[Dict[str, Any]]:

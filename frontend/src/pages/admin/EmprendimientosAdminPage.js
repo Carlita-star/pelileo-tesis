@@ -27,6 +27,7 @@ function EmprendimientosAdminPage() {
   const [parroquiaId, setParroquiaId] = useState('');
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -38,7 +39,7 @@ function EmprendimientosAdminPage() {
     if (parroquiaId) params.set('parroquia_id', parroquiaId);
     if (estado) params.set('estado', estado);
     params.set('page', String(page));
-    params.set('page_size', '10');
+    params.set('page_size', String(pageSize));
 
     try {
       const data = await apiRequest(`/api/admin/emprendimientos/?${params.toString()}`);
@@ -56,7 +57,7 @@ function EmprendimientosAdminPage() {
 
   useEffect(() => {
     fetchData();
-  }, [search, parroquiaId, estado, page]);
+  }, [search, parroquiaId, estado, page, pageSize]);
 
   useEffect(() => {
     setPage(1);
@@ -65,7 +66,7 @@ function EmprendimientosAdminPage() {
   useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchData } });
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este emprendimiento? La acción es lógica.')) return;
+    if (!window.confirm('¿Enviar este emprendimiento a la papelera? Podrá restaurarlo después desde el dashboard.')) return;
     try {
       setLoading(true);
       await apiRequest(`/api/admin/emprendimientos/${id}/`, { method: 'DELETE' });
@@ -155,7 +156,7 @@ function EmprendimientosAdminPage() {
                     <DownloadFichaButton type="emprendimiento" id={item.id} compact />
                     <button type="button" className="action-btn" onClick={() => navigate(ADMIN_PATHS.emprendimientoEditar(item.id))} title="Editar">✏️</button>
                     <button type="button" className="action-btn" onClick={() => handleToggleEstado(item)} title="Cambiar estado">🔁</button>
-                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Eliminar">🗑️</button>
+                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Enviar a papelera">🗑️</button>
                     </div>
                   </td>
                 </tr>
@@ -171,6 +172,13 @@ function EmprendimientosAdminPage() {
           <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
           <span>Página {page} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>
+                {size} / página
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

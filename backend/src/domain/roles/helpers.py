@@ -1,7 +1,9 @@
 from src.domain.roles.models import Rol, UsuarioRol
 
 ROLES_PANEL = ('administrador', 'gestor_turistico')
+ROLES_SISTEMA = ('visitante', 'administrador', 'gestor_turistico')
 ROL_VISITANTE = 'visitante'
+PRIORIDAD_ROL = {'administrador': 0, 'gestor_turistico': 1, 'visitante': 2}
 
 
 def get_or_create_visitante_rol():
@@ -12,29 +14,43 @@ def get_or_create_visitante_rol():
     return rol
 
 
-def asegurar_rol_visitante(usuario):
-    rol = get_or_create_visitante_rol()
-    UsuarioRol.objects.get_or_create(usuario=usuario, rol=rol)
-
-
-def validar_roles_panel(rol_ids):
-    """Valida IDs de roles administrativos (administrador, gestor_turistico). Puede ser vacío."""
+def normalizar_rol_ids(rol_ids):
+    """Un usuario solo puede tener un rol. Vacío → visitante por defecto."""
     if not rol_ids:
-        return []
-    ids = list(set(rol_ids))
-    validos = list(
-        Rol.objects.filter(id__in=ids, nombre__in=ROLES_PANEL).values_list('id', flat=True)
-    )
-    if len(validos) != len(ids):
-        raise ValueError('Uno o más roles seleccionados no son válidos para el panel.')
-    return validos
+        return None
+    unique = list(dict.fromkeys(rol_ids))
+    if len(unique) > 1:
+        raise ValueError('Solo se puede asignar un rol por usuario.')
+    return unique[0]
 
 
-def sincronizar_roles_usuario(usuario, rol_ids_panel):
-    """Siempre conserva visitante; los roles de panel son opcionales."""
-    visitante = get_or_create_visitante_rol()
-    panel_ids = validar_roles_panel(rol_ids_panel or [])
-    ids_finales = set(panel_ids) | {visitante.id}
-    UsuarioRol.objects.filter(usuario=usuario).exclude(rol_id__in=ids_finales).delete()
-    for rol_id in ids_finales:
-        UsuarioRol.objects.get_or_create(usuario=usuario, rol_id=rol_id)
+def asignar_rol_unico(usuario, rol_id=None):
+    """Reemplaza todos los roles del usuario por uno solo."""
+    UsuarioRol.objects.filter(usuario=usuario).delete()
+    if rol_id:
+        rol = Rol.objects.filter(id=rol_id, nombre__in=ROLES_SISTEMA).first()
+        if not rol:
+            raise ValueError('Rol no válido.')
+    else:
+        rol = get_or_create_visitante_rol()
+    UsuarioRol.objects.create(usuario=usuario, rol=rol)
+    return rol
+
+
+def asegurar_rol_visitante(usuario):
+    asignar_rol_unico(usuario, None)
+
+
+def sincronizar_roles_usuario(usuario, rol_ids):
+    """Asigna exactamente un rol al usuario."""
+    rol_id = normalizar_rol_ids(rol_ids or [])
+    asignar_rol_unico(usuario, rol_id)
+
+
+def rol_principal_de_usuario(usuario):
+    """Devuelve el rol con mayor prioridad si hubiera más de uno (datos legacy)."""
+    roles = list(usuario.usuario_roles.select_related('rol').all())
+    if not roles:
+        visitante = get_or_create_visitante_rol()
+        return visitante
+    return min(roles, key=lambda ur: PRIORIDAD_ROL.get(ur.rol.nombre, 99)).rol

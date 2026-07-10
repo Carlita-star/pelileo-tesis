@@ -9,7 +9,7 @@ from django.db.models import Q
 from src.application.dto.usuario_admin_dto import UsuarioAdminDTO
 from src.application.ports.usuario_admin_repository import UsuarioAdminRepositoryPort
 from src.domain.auditorias.models import Auditoria
-from src.domain.roles.helpers import ROLES_PANEL, ROL_VISITANTE, sincronizar_roles_usuario
+from src.domain.roles.helpers import ROLES_PANEL, ROL_VISITANTE, rol_principal_de_usuario, sincronizar_roles_usuario
 from src.domain.roles.models import Rol
 from src.domain.usuarios.models import Usuario
 from src.domain.usuarios.rules import UsuarioRules
@@ -42,10 +42,8 @@ class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
 
     @staticmethod
     def _roles_usuario(usuario: Usuario) -> List[dict]:
-        return [
-            {'id': ur.rol_id, 'nombre': ur.rol.nombre}
-            for ur in usuario.usuario_roles.select_related('rol').all()
-        ]
+        rol = rol_principal_de_usuario(usuario)
+        return [{'id': rol.id, 'nombre': rol.nombre}]
 
     @staticmethod
     def _snapshot_usuario(usuario: Usuario) -> dict:
@@ -95,9 +93,9 @@ class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
         }
 
     def _validar_roles(self, rol_ids: List[int]) -> List[int]:
-        """Solo valida roles de panel enviados desde el formulario admin."""
-        from src.domain.roles.helpers import validar_roles_panel
-        return validar_roles_panel(rol_ids)
+        from src.domain.roles.helpers import normalizar_rol_ids
+        rol_id = normalizar_rol_ids(rol_ids or [])
+        return [rol_id] if rol_id else []
 
     def _sincronizar_roles(self, usuario: Usuario, rol_ids: List[int]) -> None:
         sincronizar_roles_usuario(usuario, rol_ids)
@@ -176,10 +174,7 @@ class DjangoUsuarioAdminRepository(UsuarioAdminRepositoryPort):
             'foto_perfil': usuario.foto_perfil,
             'foto_url': self._media_url(usuario.foto_perfil),
             'iniciales': self._iniciales(usuario),
-            'rol_ids': [
-                ur.rol_id for ur in usuario.usuario_roles.select_related('rol').all()
-                if ur.rol.nombre in ROLES_PANEL
-            ],
+            'rol_ids': [rol_principal_de_usuario(usuario).id],
             'activo': usuario.activo,
         }
 

@@ -4,11 +4,11 @@ from django.http import HttpResponseNotFound, JsonResponse
 from django.views.decorators.http import require_GET, require_http_methods
 
 from src.infrastructure.repositories.django_usuario_perfil_repository import DjangoUsuarioPerfilRepository
-from src.interfaces.api_rest.auth_utils import admin_panel_required
+from src.interfaces.api_rest.auth_utils import jwt_required
 
 
 @require_GET
-@admin_panel_required
+@jwt_required
 def admin_perfil_get(request):
     data = DjangoUsuarioPerfilRepository().obtener_perfil(request.jwt_user.id)
     if not data:
@@ -17,7 +17,7 @@ def admin_perfil_get(request):
 
 
 @require_http_methods(['PUT'])
-@admin_panel_required
+@jwt_required
 def admin_perfil_actualizar(request):
     try:
         payload = json.loads(request.body or '{}')
@@ -35,7 +35,7 @@ def admin_perfil_actualizar(request):
 
 
 @require_http_methods(['PUT'])
-@admin_panel_required
+@jwt_required
 def admin_perfil_cambiar_password(request):
     try:
         payload = json.loads(request.body or '{}')
@@ -53,7 +53,7 @@ def admin_perfil_cambiar_password(request):
 
 
 @require_http_methods(['POST'])
-@admin_panel_required
+@jwt_required
 def admin_perfil_foto(request):
     archivo = request.FILES.get('foto')
     if not archivo:

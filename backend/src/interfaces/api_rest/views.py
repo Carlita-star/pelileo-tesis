@@ -25,6 +25,7 @@ from src.domain.emprendimientos.models import (
 )
 from src.domain.usuarios.models import Usuario
 from src.domain.eventos.models import Evento
+from src.domain.resenas.helpers import aplicar_stats_a_item, stats_entidad, stats_por_entidades
 from src.domain.auditorias.models import HistorialPublicacion, Auditoria
 from src.domain.reportes.models import ReporteGenerado
 from src.domain.empresa.models import Empresa, Configuracion
@@ -296,6 +297,7 @@ def api_root(request):
                 "emprendimientos": "/api/emprendimientos/",
                 "usuarios": "/api/usuarios/",
                 "eventos": "/api/eventos/",
+                "resenas": "/api/resenas/",
                 "publicaciones": "/api/publicaciones/",
                 "reportes": "/api/reportes/",
                 "auditorias": "/api/auditorias/",
@@ -318,6 +320,7 @@ def atractivos_list(request):
 
     ids = [a.id for a in atractivos]
     servicios_map = _batch_servicios_atractivos_lista(ids)
+    resenas_map = stats_por_entidades('atractivo', ids)
 
     data = []
     for a in atractivos:
@@ -339,6 +342,7 @@ def atractivos_list(request):
             'visitas': a.visitas,
             'destacado': a.destacado,
         })
+        aplicar_stats_a_item(data[-1], a.id, resenas_map)
 
     return JsonResponse({'results': data})
 
@@ -396,6 +400,7 @@ def rutas_list(request):
 
     ids = [r.id for r in rutas]
     paradas_map, imagenes_map = _batch_datos_rutas_lista(ids, request)
+    resenas_map = stats_por_entidades('ruta', ids)
 
     data = []
     for r in rutas:
@@ -423,6 +428,7 @@ def rutas_list(request):
             'geojson_ruta': r.geojson_ruta,
             'destacado': r.destacado,
         })
+        aplicar_stats_a_item(data[-1], r.id, resenas_map)
 
     return JsonResponse({'results': data})
 
@@ -436,6 +442,7 @@ def emprendimientos_list(request):
 
     ids = [e.id for e in emprendimientos]
     imagenes_map, servicios_map, redes_map, atractivo_map = _batch_datos_emprendimientos_lista(ids, request)
+    resenas_map = stats_por_entidades('emprendimiento', ids)
 
     data = []
     for e in emprendimientos:
@@ -466,6 +473,7 @@ def emprendimientos_list(request):
             'redes_sociales': redes_map.get(e.id, []),
             'atractivo_cercano': atractivo_map.get(e.id),
         })
+        aplicar_stats_a_item(data[-1], e.id, resenas_map)
 
     return JsonResponse({'results': data})
 
@@ -496,14 +504,18 @@ def usuarios_list(request):
 
 @require_GET
 def eventos_list(request):
-    eventos = (
+    eventos = list(
         Evento.objects.filter(**_filtro_publicado())
         .select_related('categoria', 'estado_publicacion')
         .order_by('fecha_inicio')[:20]
     )
 
-    data = [
-        {
+    ids = [e.id for e in eventos]
+    resenas_map = stats_por_entidades('evento', ids)
+
+    data = []
+    for e in eventos:
+        item = {
             'id': e.id,
             'nombre': e.nombre,
             'imagen': _imagen_principal('evento', e.id),
@@ -519,10 +531,50 @@ def eventos_list(request):
             'organizador': e.organizador,
             'contacto': e.contacto,
         }
-        for e in eventos
-    ]
+        aplicar_stats_a_item(item, e.id, resenas_map)
+        data.append(item)
 
     return JsonResponse({'results': data})
+
+
+@require_GET
+def eventos_detail(request, evento_id):
+    try:
+        e = (
+            Evento.objects
+            .select_related('categoria', 'estado_publicacion')
+            .get(pk=evento_id, **_filtro_publicado())
+        )
+    except Evento.DoesNotExist:
+        return JsonResponse({'error': 'Evento no encontrado'}, status=404)
+
+    multimedia = [
+        _serialize_multimedia_item(m, request)
+        for m in Multimedia.objects.filter(entidad_tipo='evento', entidad_id=e.id, activo=True).order_by('-principal', 'orden')
+    ]
+
+    resumen = stats_entidad('evento', e.id)
+
+    data = {
+        'id': e.id,
+        'nombre': e.nombre,
+        'descripcion': e.descripcion,
+        'categoria': e.categoria.nombre if e.categoria_id else None,
+        'estado_publicacion': e.estado_publicacion.nombre if e.estado_publicacion_id else None,
+        'fecha_inicio': e.fecha_inicio.isoformat() if e.fecha_inicio else None,
+        'fecha_fin': e.fecha_fin.isoformat() if e.fecha_fin else None,
+        'direccion': e.direccion,
+        'latitud': float(e.latitud) if e.latitud is not None else None,
+        'longitud': float(e.longitud) if e.longitud is not None else None,
+        'costo': float(e.costo) if e.costo is not None else None,
+        'organizador': e.organizador,
+        'contacto': e.contacto,
+        'imagen': _imagen_principal('evento', e.id, request),
+        'multimedia': multimedia,
+        'promedio_calificacion': resumen['promedio_calificacion'],
+        'total_resenas': resumen['total_resenas'],
+    }
+    return JsonResponse(data)
 
 
 @require_GET
@@ -1014,6 +1066,9 @@ def atractivos_detail(request, slug):
         'multimedia': multimedia,
         'atractivos_recomendados': atractivos_recomendados,
     }
+    resumen = stats_entidad('atractivo', a.id)
+    data['promedio_calificacion'] = resumen['promedio_calificacion']
+    data['total_resenas'] = resumen['total_resenas']
     return JsonResponse(data)
 
 @require_GET
@@ -1088,6 +1143,9 @@ def rutas_detail(request, ruta_id):
         'multimedia': multimedia,
         'emprendimientos_cercanos': emprendimientos_cercanos,
     }
+    resumen = stats_entidad('ruta', r.id)
+    data['promedio_calificacion'] = resumen['promedio_calificacion']
+    data['total_resenas'] = resumen['total_resenas']
     return JsonResponse(data)
 
 @require_GET
@@ -1138,4 +1196,7 @@ def emprendimientos_detail(request, emp_id):
         'emprendimientos_recomendados': emprendimientos_recomendados,
         'multimedia': multimedia,
     }
+    resumen = stats_entidad('emprendimiento', e.id)
+    data['promedio_calificacion'] = resumen['promedio_calificacion']
+    data['total_resenas'] = resumen['total_resenas']
     return JsonResponse(data)

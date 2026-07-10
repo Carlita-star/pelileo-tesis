@@ -72,7 +72,9 @@ function AtractivosPage() {
   const visibleRows = useMemo(() => atractivos, [atractivos]);
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm('¿Seguro que deseas eliminar este atractivo? La acción es lógica.');
+    const confirmed = window.confirm(
+      '¿Enviar este atractivo a la papelera? Dejará de aparecer en los listados, pero podrá restaurarlo después.'
+    );
     if (!confirmed) {
       return;
     }
@@ -245,7 +247,7 @@ function AtractivosPage() {
                     <button type="button" className="action-btn" onClick={() => handleToggleEstado(item)} title="Cambiar estado" aria-label="Cambiar estado">
                       🔁
                     </button>
-                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Eliminar" aria-label="Eliminar">
+                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Enviar a papelera" aria-label="Enviar a papelera">
                       🗑️
                     </button>
                     </div>

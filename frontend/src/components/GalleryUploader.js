@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getApiBase, getAuthHeaders } from '../services/apiClient';
+import { normalizeMediaUrl } from '../services/media';
 import { useErrorToast } from '../hooks/useErrorToast';
 
 function GalleryUploader({
@@ -24,12 +25,7 @@ function GalleryUploader({
 
   const effectiveEntityId = entidadId || activeEntityId;
 
-  const resolveUrl = (item) => {
-    if (item.url?.startsWith('http')) {
-      return item.url;
-    }
-    return `${getApiBase()}${item.url || `/media/${item.archivo}`}`;
-  };
+  const resolveUrl = (item) => normalizeMediaUrl(item.url || item.archivo);
 
   const loadGallery = async (targetId = effectiveEntityId) => {
     if (!targetId) return;

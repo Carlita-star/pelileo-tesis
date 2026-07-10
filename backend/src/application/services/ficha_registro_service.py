@@ -15,6 +15,7 @@ from src.domain.multimedia.models import Multimedia
 from src.domain.rutas.models import Ruta
 from src.domain.atractivos.models import Atractivo
 from src.domain.emprendimientos.models import Emprendimiento
+from src.domain.eventos.models import Evento
 from src.infrastructure.repositories.django_atractivo_repository import DjangoAtractivoAdminRepository
 from src.infrastructure.repositories.django_ruta_admin_repository import DjangoRutaAdminRepository
 from src.infrastructure.repositories.django_emprendimiento_admin_repository import DjangoEmprendimientoAdminRepository
@@ -22,7 +23,7 @@ from src.infrastructure.repositories.django_configuracion_admin_repository impor
 from src.application.services.ficha_pdf_builder import FichaPdfBuilder
 from src.application.services.ficha_word_builder import FichaWordBuilder
 
-TIPOS_FICHA = ('atractivo', 'ruta', 'emprendimiento')
+TIPOS_FICHA = ('atractivo', 'ruta', 'emprendimiento', 'evento')
 FORMATOS_VALIDOS = ('pdf', 'word')
 
 
@@ -376,6 +377,47 @@ class FichaRegistroService:
         ficha['images'] = _list_images('emprendimiento', emprendimiento_id)
         return ficha
 
+    def datos_evento(self, evento_id: int) -> Dict[str, Any]:
+        evento = Evento.objects.select_related('categoria', 'estado_publicacion').filter(
+            id=evento_id
+        ).first()
+        if not evento:
+            raise ValueError('Evento no encontrado.')
+
+        ficha = self._build_ficha_base('evento', 'Evento turístico', evento.nombre)
+        ficha['sections'] = [
+            self._fields_section('Información general', [
+                ('Nombre', evento.nombre),
+                ('Categoría', evento.categoria.nombre if evento.categoria_id else None),
+                ('Estado de publicación', evento.estado_publicacion.nombre if evento.estado_publicacion_id else None),
+                ('Registro activo', evento.activo),
+                ('Organizador', evento.organizador),
+                ('Contacto', evento.contacto),
+                ('Costo', f'${evento.costo}' if evento.costo is not None else None),
+            ]),
+            self._text_section('Descripción', [
+                ('Descripción', evento.descripcion),
+            ]),
+            self._fields_section('Fechas y ubicación', [
+                ('Fecha inicio', _fmt_dt(evento.fecha_inicio.isoformat() if evento.fecha_inicio else None)),
+                ('Fecha fin', _fmt_dt(evento.fecha_fin.isoformat() if evento.fecha_fin else None)),
+                ('Dirección', evento.direccion),
+                ('Latitud', float(evento.latitud) if evento.latitud is not None else None),
+                ('Longitud', float(evento.longitud) if evento.longitud is not None else None),
+                ('Coordenadas', (
+                    f'{evento.latitud}, {evento.longitud}'
+                    if evento.latitud is not None and evento.longitud is not None
+                    else None
+                )),
+            ]),
+            self._fields_section('Metadatos del registro', [
+                ('Fecha de creación', _fmt_dt(evento.creado_en.isoformat() if evento.creado_en else None)),
+                ('ID del registro', evento.id),
+            ]),
+        ]
+        ficha['images'] = _list_images('evento', evento_id)
+        return ficha
+
     def obtener_datos(self, tipo: str, entity_id: int) -> Dict[str, Any]:
         tipo = (tipo or '').lower()
         if tipo == 'atractivo':
@@ -384,6 +426,8 @@ class FichaRegistroService:
             return self.datos_ruta(entity_id)
         if tipo == 'emprendimiento':
             return self.datos_emprendimiento(entity_id)
+        if tipo == 'evento':
+            return self.datos_evento(entity_id)
         raise ValueError('Tipo de ficha no soportado.')
 
     def generar(
@@ -401,6 +445,7 @@ class FichaRegistroService:
             'atractivo': 'Atractivo',
             'ruta': 'Ruta',
             'emprendimiento': 'Emprendimiento',
+            'evento': 'Evento',
         }
         prefix = prefix_map.get(tipo, 'Registro')
 

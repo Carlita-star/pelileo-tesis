@@ -18,18 +18,21 @@ export function saveSession({ usuario, token }) {
   localStorage.setItem('usuario', JSON.stringify(usuario));
   localStorage.setItem('autenticado', 'true');
   localStorage.setItem('token', token);
+  window.dispatchEvent(new Event('auth-changed'));
 }
 
 export function updateStoredUser(partial) {
   const current = getStoredUser();
   if (!current) return;
   localStorage.setItem('usuario', JSON.stringify({ ...current, ...partial }));
+  window.dispatchEvent(new Event('auth-changed'));
 }
 
 export function clearSession() {
   localStorage.removeItem('usuario');
   localStorage.removeItem('autenticado');
   localStorage.removeItem('token');
+  window.dispatchEvent(new Event('auth-changed'));
 }
 
 const ADMIN_PANEL_ROLES = new Set(['administrador', 'gestor_turistico']);

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { obtenerAtractivoPorSlug } from '../../services/atractivos.service';
-import { API_BASE } from '../../services/api';
+import { urlImagen } from '../../services/media';
+import GaleriaDetalle from '../../components/publico/GaleriaDetalle';
 import MiniMapa from '../../components/publico/MiniMapa';
 import BotonComoLlegar from '../../components/publico/ComoLlegar';
 import TarjetaCercano from '../../components/publico/TarjetaCercano';
+import SeccionResenas from '../../components/publico/SeccionResenas';
+import '../../components/publico/resenas-publico.css';
 
 // ---------------------------------------------------------------------------
 // Pequeñas ayudas para leer la respuesta de la API sin que un campo faltante
@@ -21,18 +24,6 @@ function texto(valor) {
   return valor;
 }
 
-// Convierte la "archivo" de multimedia en una URL que el navegador pueda mostrar.
-// Si ya es una URL completa, la usa tal cual; si es ruta relativa, la sirve
-// desde el backend (carpeta media de Django).
-function urlImagen(archivo) {
-  if (!archivo) return null;
-  if (typeof archivo !== 'string') return null;
-  if (archivo.startsWith('http')) return archivo;
-  const base = API_BASE.replace(/\/$/, '');
-  const ruta = archivo.startsWith('/') ? archivo : `/media/${archivo}`;
-  return `${base}${ruta}`;
-}
-
 // Busca un array dentro del atractivo probando varios nombres posibles de campo.
 function lista(obj, ...nombresPosibles) {
   for (const n of nombresPosibles) {
@@ -46,7 +37,6 @@ function FichaAtractivo() {
   const [atractivo, setAtractivo] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
-  const [imgActiva, setImgActiva] = useState(0);
 
   useEffect(() => {
     let activo = true;
@@ -133,31 +123,15 @@ function FichaAtractivo() {
         <span className="text-slate-700">{nombre}</span>
       </nav>
 
-      {/* Galería */}
-      {imagenes.length > 0 ? (
-        <div>
-          <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
-            <img src={imagenes[imgActiva]?.url} alt={nombre} className="h-[420px] w-full object-cover" />
+      <GaleriaDetalle
+        imagenes={imagenes}
+        titulo={nombre}
+        vacio={(
+          <div className="flex h-64 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+            Sin imágenes disponibles
           </div>
-          {imagenes.length > 1 && (
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-              {imagenes.map((img, i) => (
-                <button
-                  key={i}
-                  onClick={() => setImgActiva(i)}
-                  className={`h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg ring-2 transition ${i === imgActiva ? 'ring-primario' : 'ring-transparent hover:ring-slate-300'}`}
-                >
-                  <img src={img.url} alt={img.titulo || `${nombre} ${i + 1}`} className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex h-64 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-          Sin imágenes disponibles
-        </div>
-      )}
+        )}
+      />
 
       {/* Título y badges */}
       <div className="mt-6">
@@ -256,7 +230,11 @@ function FichaAtractivo() {
         </section>
       )}
 
-      <div className="mt-12">
+      {atractivo.id && (
+        <SeccionResenas entidadTipo="atractivo" entidadId={atractivo.id} />
+      )}
+
+      <div className="detalle-volver-bar">
         <Link to="/atractivos" className="text-sm font-medium text-primario hover:underline">
           ← Volver al catálogo de atractivos
         </Link>

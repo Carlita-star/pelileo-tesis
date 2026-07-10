@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { clearSession, hasPanelAccess, isAuthenticated } from '../services/authStorage';
+import { hasPanelAccess, isAuthenticated } from '../services/authStorage';
 import { ADMIN_PATHS } from './adminPaths';
 
 function ProtectedRoute({ children }) {
@@ -10,7 +10,6 @@ function ProtectedRoute({ children }) {
   }
 
   if (!hasPanelAccess()) {
-    clearSession();
     return <Navigate to="/" replace state={{ reason: 'no-panel-access' }} />;
   }
 

@@ -53,6 +53,7 @@ function UsuariosPage() {
   const [rolId, setRolId] = useState('');
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -64,7 +65,7 @@ function UsuariosPage() {
     if (rolId) params.set('rol_id', rolId);
     if (estado) params.set('estado', estado);
     params.set('page', String(page));
-    params.set('page_size', '10');
+    params.set('page_size', String(pageSize));
 
     try {
       const data = await apiRequest(`/api/admin/usuarios/?${params.toString()}`);
@@ -88,7 +89,7 @@ function UsuariosPage() {
 
   useEffect(() => {
     fetchData();
-  }, [search, rolId, estado, page]);
+  }, [search, rolId, estado, page, pageSize]);
 
   useEffect(() => {
     setPage(1);
@@ -176,7 +177,7 @@ function UsuariosPage() {
               <th>Nombre completo</th>
               <th>Username</th>
               <th>Email</th>
-              <th>Roles</th>
+              <th>Rol</th>
               <th>Último acceso</th>
               <th>Acciones</th>
             </tr>
@@ -241,6 +242,13 @@ function UsuariosPage() {
           <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
           <span>Página {page} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>
+                {size} / página
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </section>

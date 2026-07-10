@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { obtenerEmprendimientoPorId } from '../../services/emprendimientos.service';
+import GaleriaDetalle from '../../components/publico/GaleriaDetalle';
 import { urlImagen } from '../../services/media';
 import MiniMapa from '../../components/publico/MiniMapa';
 import BotonComoLlegar from '../../components/publico/ComoLlegar';
 import TarjetaCercano from '../../components/publico/TarjetaCercano';
+import SeccionResenas from '../../components/publico/SeccionResenas';
+import '../../components/publico/resenas-publico.css';
 
 // P-07 — Detalle de emprendimiento (/emprendimientos/:id)  —  VA EN: src/pages/publico/
 function DetalleEmprendimiento() {
@@ -12,13 +15,12 @@ function DetalleEmprendimiento() {
   const [emp, setEmp] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
-  const [imgActiva, setImgActiva] = useState(0);
 
   useEffect(() => {
     let activo = true;
     setCargando(true);
     // La URL trae "5-hosteria-el-descanso"; parseInt saca el número (5).
-    obtenerEmprendimientoPorId(parseInt(id, 10))
+    obtenerEmprendimientoPorId(parseInt(String(id).split('-')[0], 10))
       .then((datos) => { if (activo) { setEmp(datos); setCargando(false); } })
       .catch((e) => { if (activo) { setError(e.message); setCargando(false); } });
     return () => { activo = false; };
@@ -68,29 +70,15 @@ function DetalleEmprendimiento() {
         <span className="text-slate-700">{emp.nombre}</span>
       </nav>
 
-      {/* Galería (imagen principal grande + miniaturas) */}
-      {imagenes.length > 0 ? (
-        <div>
-          <div className="overflow-hidden rounded-2xl ring-1 ring-slate-200">
-            <img src={imagenes[imgActiva]} alt={emp.nombre} className="h-80 w-full object-cover" />
+      <GaleriaDetalle
+        imagenes={imagenes}
+        titulo={emp.nombre}
+        vacio={(
+          <div className="flex h-56 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+            Sin imágenes disponibles
           </div>
-          {imagenes.length > 1 && (
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-              {imagenes.map((src, i) => (
-                <button
-                  key={i}
-                  onClick={() => setImgActiva(i)}
-                  className={`h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg ring-2 transition ${i === imgActiva ? 'ring-primario' : 'ring-transparent hover:ring-slate-300'}`}
-                >
-                  <img src={src} alt={`${emp.nombre} ${i + 1}`} className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex h-56 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">Sin imágenes disponibles</div>
-      )}
+        )}
+      />
 
       {/* Título y badges */}
       <div className="mt-6">
@@ -180,7 +168,11 @@ function DetalleEmprendimiento() {
         </section>
       )}
 
-      <div className="mt-12">
+      {emp.id && (
+        <SeccionResenas entidadTipo="emprendimiento" entidadId={emp.id} />
+      )}
+
+      <div className="detalle-volver-bar">
         <Link to="/emprendimientos" className="text-sm font-medium text-primario hover:underline">← Volver a emprendimientos</Link>
       </div>
     </div>
