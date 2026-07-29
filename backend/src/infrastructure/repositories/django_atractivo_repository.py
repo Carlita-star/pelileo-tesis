@@ -171,6 +171,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
                 'direccion': atractivo.direccion,
                 'horario': atractivo.horario,
                 'precio_referencial': float(atractivo.precio_referencial) if atractivo.precio_referencial else None,
+                'destacado': bool(atractivo.destacado),
             },
             'ubicacion': {
                 'latitud': float(atractivo.latitud) if atractivo.latitud else None,
@@ -296,6 +297,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         atractivo.direccion = data.general.direccion
         atractivo.horario = data.general.horario
         atractivo.precio_referencial = data.general.precio_referencial
+        atractivo.destacado = bool(getattr(data.general, 'destacado', False))
         atractivo.latitud = data.ubicacion.latitud
         atractivo.longitud = data.ubicacion.longitud
         atractivo.altitud = data.ubicacion.altitud

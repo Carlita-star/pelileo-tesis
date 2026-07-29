@@ -1,0 +1,32 @@
+# Copiar a la carpeta pública de api.biznetiq.com en cPanel (junto a passenger_wsgi.py).
+# Ajustar la ruta del symlink si su hosting usa otra estructura.
+#
+# PROBLEMA QUE RESUELVE:
+# En cPanel/Passenger, Django sirve /media/ con views.static.serve. Muchos archivos
+# devuelven 503 ("Service Unavailable") aunque la API JSON funcione. Apache debe
+# servir /media/ directamente, sin pasar por Python.
+#
+# PASOS EN cPanel (File Manager):
+# 1. Ir a la carpeta del subdominio api.biznetiq.com (document root).
+# 2. Crear enlace simbólico: media -> /home/biznetiq/backend/media
+#    (En File Manager: + Enlace → Enlace simbólico)
+# 3. Fusionar este archivo con el .htaccess existente de la app Python.
+# 4. Permisos de archivos:
+#    chmod -R 755 /home/biznetiq/backend/media
+#    find /home/biznetiq/backend/media -type f -exec chmod 644 {} \;
+# 5. Setup Python App → Reiniciar la aplicación.
+# 6. Probar: https://api.biznetiq.com/media/multimedia/evento/1/....jpg → debe ser 200
+
+<IfModule mod_passenger.c>
+  <Location "/media">
+    PassengerEnabled off
+  </Location>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Si el archivo existe en el symlink media/, Apache lo sirve y no llega a Django.
+  RewriteCond %{REQUEST_URI} ^/media/
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} -f
+  RewriteRule ^ - [L]
+</IfModule>

@@ -305,6 +305,7 @@ def api_root(request):
                 "admin_eventos": "/api/admin/eventos/",
                 "dashboard": "/api/dashboard/",
                 "configuracion": "/api/configuracion/",
+                "catalogos": "/api/catalogos/publicos/",
             },
         }
     )
@@ -391,10 +392,48 @@ def galeria_publica_list(request):
     return JsonResponse({'results': results})
 
 
+# Valores alineados con el formulario admin de rutas (general.dificultad).
+DIFICULTADES_RUTA = [
+    {'valor': 'facil', 'etiqueta': 'Fácil'},
+    {'valor': 'moderado', 'etiqueta': 'Moderado'},
+    {'valor': 'dificil', 'etiqueta': 'Difícil'},
+]
+
+# Estado temporal del evento en el portal (calculado por fechas; no es EstadoPublicacion).
+ESTADOS_EVENTO_PORTAL = [
+    {'valor': 'Próximo', 'etiqueta': 'Próximos'},
+    {'valor': 'En curso', 'etiqueta': 'En curso'},
+    {'valor': 'Finalizado', 'etiqueta': 'Finalizados'},
+]
+
+
+@require_GET
+def catalogos_publicos_list(request):
+    """
+    Opciones de filtro del portal público, tomadas de las tablas de catálogo.
+    Así categoría/parroquia coinciden con lo que se llena en el administrador.
+    """
+    categorias = [
+        {'id': c.id, 'nombre': c.nombre}
+        for c in Categoria.objects.filter(activo=True).order_by('nombre')
+    ]
+    parroquias = [
+        {'id': p.id, 'nombre': p.nombre}
+        for p in Parroquia.objects.filter(activo=True).order_by('nombre')
+    ]
+    return JsonResponse({
+        'categorias': categorias,
+        'parroquias': parroquias,
+        'dificultades': DIFICULTADES_RUTA,
+        'estados_evento': ESTADOS_EVENTO_PORTAL,
+    })
+
+
 @require_GET
 def rutas_list(request):
     rutas = list(
         Ruta.objects.filter(**_filtro_publicado())
+        .select_related('parroquia')
         .order_by('-destacado', '-creado_en')
     )
 
@@ -419,6 +458,7 @@ def rutas_list(request):
             'distancia_km': float(r.distancia_km) if r.distancia_km is not None else None,
             'duracion_estimada': r.duracion_estimada,
             'dificultad': r.dificultad,
+            'parroquia': r.parroquia.nombre if r.parroquia_id else None,
             'num_atractivos': len(paradas) or r.atractivos.filter(activo=True).count(),
             'lat_inicio': float(r.lat_inicio) if r.lat_inicio is not None else None,
             'lon_inicio': float(r.lon_inicio) if r.lon_inicio is not None else None,
@@ -860,6 +900,7 @@ def admin_atractivo_save(request, atractivo_id=None):
                 horario=general_data.get('horario'),
                 precio_referencial=general_data.get('precio_referencial'),
                 slug=general_data.get('slug'),
+                destacado=bool(general_data.get('destacado', False)),
             ),
             ubicacion=AtractivoUbicacionDTO(
                 latitud=ubicacion_data.get('latitud'),

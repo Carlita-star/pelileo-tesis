@@ -28,7 +28,7 @@ const FUENTES = [
 
 const COLORES_APARIENCIA_DEFAULT = {
   color_primario: '#1D9E75',
-  color_secundario: '#157A5A',
+  color_secundario: '#F9A825',
   color_terciario: '#2563EB',
 };
 
@@ -269,7 +269,18 @@ function ConfiguracionPage() {
               className="catalog-form config-form apariencia-config-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                guardar('apariencia', { ...apariencia, modo_oscuro: false }, 'Apariencia guardada.');
+                guardar('apariencia', {
+                  ...apariencia,
+                  modo_oscuro: false,
+                  header: {
+                    color_fondo: header.color_fondo || '#0f172a',
+                    color_texto: header.color_texto || '#ffffff',
+                  },
+                  footer: {
+                    color_fondo: footer.color_fondo || '#0f172a',
+                    color_texto: footer.color_texto || '#e2e8f0',
+                  },
+                }, 'Apariencia guardada.');
               }}
             >
               <div className="apariencia-config">
@@ -285,7 +296,10 @@ function ConfiguracionPage() {
                   >
                     <div
                       className="apariencia-preview__bar"
-                      style={{ background: colorApariencia(apariencia, 'color_primario') }}
+                      style={{
+                        background: header.color_fondo || '#0f172a',
+                        color: header.color_texto || '#ffffff',
+                      }}
                     >
                       <span className="apariencia-preview__brand">Turismo Pelileo</span>
                       <span className="apariencia-preview__nav-dot" />
@@ -332,6 +346,15 @@ function ConfiguracionPage() {
                           Tarjeta de contenido
                         </span>
                       </div>
+                      <div
+                        className="apariencia-preview__footer-bar"
+                        style={{
+                          background: footer.color_fondo || '#0f172a',
+                          color: footer.color_texto || '#e2e8f0',
+                        }}
+                      >
+                        Pie de página
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -340,9 +363,9 @@ function ConfiguracionPage() {
                   <p className="apariencia-config__eyebrow">Personalización</p>
                   <div className="apariencia-colores">
                     {[
-                      ['color_primario', 'Color primario', 'Botones, enlaces activos'],
-                      ['color_secundario', 'Color secundario', 'Acentos y detalles'],
-                      ['color_terciario', 'Color terciario', 'Textos destacados'],
+                      ['color_primario', 'Color primario', 'Botones principales, enlaces activos e iconos del portal'],
+                      ['color_secundario', 'Color secundario', 'Acentos (enlaces del footer, detalles y bordes suaves)'],
+                      ['color_terciario', 'Color terciario', 'Etiquetas de sección y textos destacados'],
                     ].map(([key, label, hint]) => {
                       const valor = colorApariencia(apariencia, key);
                       return (
@@ -361,6 +384,54 @@ function ConfiguracionPage() {
                         </label>
                       );
                     })}
+                  </div>
+
+                  <p className="apariencia-config__eyebrow apariencia-config__eyebrow--spaced">Header y footer</p>
+                  <div className="apariencia-colores">
+                    {[
+                      {
+                        key: 'header_fondo',
+                        label: 'Fondo del header',
+                        hint: 'Barra superior de navegación (logo, menú y botón Mapa)',
+                        valor: header.color_fondo || '#0f172a',
+                        onChange: (v) => setHeader((h) => ({ ...h, color_fondo: v })),
+                      },
+                      {
+                        key: 'header_texto',
+                        label: 'Texto del header',
+                        hint: 'Color del nombre, eslogan y enlaces del menú superior',
+                        valor: header.color_texto || '#ffffff',
+                        onChange: (v) => setHeader((h) => ({ ...h, color_texto: v })),
+                      },
+                      {
+                        key: 'footer_fondo',
+                        label: 'Fondo del footer',
+                        hint: 'Pie de página completo (contacto, redes y copyright)',
+                        valor: footer.color_fondo || '#0f172a',
+                        onChange: (v) => setFooter((f) => ({ ...f, color_fondo: v })),
+                      },
+                      {
+                        key: 'footer_texto',
+                        label: 'Texto del footer',
+                        hint: 'Títulos, enlaces y textos del pie de página',
+                        valor: footer.color_texto || '#e2e8f0',
+                        onChange: (v) => setFooter((f) => ({ ...f, color_texto: v })),
+                      },
+                    ].map((campo) => (
+                      <label key={campo.key} className="apariencia-color-field">
+                        <span className="apariencia-color-field__label">{campo.label}</span>
+                        <span className="apariencia-color-field__hint">{campo.hint}</span>
+                        <div className="apariencia-color-field__row">
+                          <input
+                            type="color"
+                            value={campo.valor}
+                            onChange={(e) => campo.onChange(e.target.value)}
+                            aria-label={campo.label}
+                          />
+                          <code className="apariencia-color-hex">{campo.valor.toUpperCase()}</code>
+                        </div>
+                      </label>
+                    ))}
                   </div>
 
                   <label className="apariencia-control">
@@ -462,6 +533,9 @@ function ConfiguracionPage() {
                   onChange={(e) => setHeader((h) => ({ ...h, texto_superior: e.target.value }))}
                 />
               </label>
+              <p className="section-note">
+                Los colores del header y del footer se configuran en la pestaña <strong>Apariencia</strong>.
+              </p>
 
               <h4>Footer</h4>
               <label>

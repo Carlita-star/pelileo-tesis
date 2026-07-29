@@ -14,6 +14,7 @@ class AtractivoGeneralDTO:
     horario: Optional[str] = None
     precio_referencial: Optional[float] = None
     slug: Optional[str] = None
+    destacado: bool = False
 
 
 @dataclass

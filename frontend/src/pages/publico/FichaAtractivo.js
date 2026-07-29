@@ -112,132 +112,210 @@ function FichaAtractivo() {
     { etiqueta: 'Señalización', valor: acceso.posee_senalizacion === true ? 'Sí' : acceso.posee_senalizacion === false ? 'No' : null },
   ].filter((x) => x.valor);
 
+  const climaValor = detalles.clima;
+  const mesesValor = detalles.meses_recomendados;
+  const horarioValor = atractivo.horario ?? detalles.horario;
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      {/* Migaja de pan */}
-      <nav className="mb-5 text-sm text-slate-500">
-        <Link to="/" className="hover:text-primario">Inicio</Link>
-        <span className="mx-2">/</span>
-        <Link to="/atractivos" className="hover:text-primario">Atractivos</Link>
-        <span className="mx-2">/</span>
-        <span className="text-slate-700">{nombre}</span>
-      </nav>
+    <div className="min-h-screen bg-[#f7f8f6]">
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <nav className="mb-5 text-sm text-slate-500">
+          <Link to="/" className="hover:text-primario">Inicio</Link>
+          <span className="mx-2">/</span>
+          <Link to="/atractivos" className="hover:text-primario">Atractivos</Link>
+          <span className="mx-2">/</span>
+          <span className="text-slate-700">{nombre}</span>
+        </nav>
 
-      <GaleriaDetalle
-        imagenes={imagenes}
-        titulo={nombre}
-        vacio={(
-          <div className="flex h-64 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-            Sin imágenes disponibles
-          </div>
-        )}
-      />
-
-      {/* Título y badges */}
-      <div className="mt-6">
-        <h1 className="text-3xl font-extrabold text-slate-800">{nombre}</h1>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {categoria && <span className="rounded-full bg-primario/10 px-3 py-1 text-sm font-medium text-primario">{categoria}</span>}
-          {parroquia && <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">{parroquia}</span>}
-        </div>
-      </div>
-
-      {/* Descripción */}
-      {descripcion && (
-        <p className="mt-5 leading-relaxed text-slate-600">{descripcion}</p>
-      )}
-
-      {/* Información rápida */}
-      {infoRapida.length > 0 && (
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {infoRapida.map((item) => (
-            <div key={item.etiqueta} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.etiqueta}</p>
-              <p className="mt-1 text-sm font-medium text-slate-700">{item.valor}</p>
+        <GaleriaDetalle
+          imagenes={imagenes}
+          titulo={nombre}
+          vacio={(
+            <div className="flex h-64 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-slate-100 text-slate-400">
+              <span className="text-4xl font-black text-primario/20">{nombre?.charAt(0) ?? 'A'}</span>
+              <span className="mt-2 text-sm">Fotos próximamente</span>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Cómo llegar */}
-      {comoLlegar.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-xl font-bold text-slate-800">Cómo llegar</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {comoLlegar.map((item) => (
-              <div key={item.etiqueta} className="flex justify-between rounded-xl bg-white p-4 ring-1 ring-slate-200">
-                <span className="text-sm text-slate-500">{item.etiqueta}</span>
-                <span className="text-sm font-medium text-slate-700">{item.valor}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Servicios */}
-      {servicios.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-xl font-bold text-slate-800">Servicios disponibles</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {servicios.map((s, i) => (
-              <span key={i} className="rounded-full bg-slate-100 px-4 py-1.5 text-sm text-slate-700">{s}</span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Actividades */}
-      {actividades.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-xl font-bold text-slate-800">Actividades</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {actividades.map((a, i) => (
-              <span key={i} className="rounded-full bg-secundario/15 px-4 py-1.5 text-sm font-medium text-slate-700">{a}</span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Ubicación, cómo llegar y recomendaciones */}
-      {((atractivo.latitud != null && atractivo.longitud != null) || recomendados.length > 0) && (
-        <section className="mt-10">
-          {(atractivo.latitud != null && atractivo.longitud != null) && (
-            <>
-              <h2 className="text-xl font-bold text-slate-800">Ubicación</h2>
-              {atractivo.direccion && <p className="mt-1 text-sm text-slate-500">{atractivo.direccion}</p>}
-              <div className="mt-4">
-                <MiniMapa lat={atractivo.latitud} lng={atractivo.longitud} nombre={nombre} />
-              </div>
-              <div className="mt-3">
-                <BotonComoLlegar lat={atractivo.latitud} lng={atractivo.longitud} />
-              </div>
-            </>
           )}
+        />
 
-          {recomendados.length > 0 && (
-            <div className={atractivo.latitud != null && atractivo.longitud != null ? 'mt-10' : ''}>
-              <h2 className="text-xl font-bold text-slate-800">Más atractivos para descubrir</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Otros lugares turísticos que podrían interesarte.
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
+          <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200/80 sm:p-8">
+            <div className="flex flex-wrap gap-2">
+              {categoria && (
+                <span className="rounded-full bg-primario/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-primario">
+                  {categoria}
+                </span>
+              )}
+              {parroquia && (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  {parroquia}
+                </span>
+              )}
+            </div>
+
+            <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+              {nombre}
+            </h1>
+
+            {atractivo.promedio_calificacion != null && (
+              <p className="mt-2 text-sm text-slate-500">
+                ★ {Number(atractivo.promedio_calificacion).toFixed(1)}
+                {atractivo.total_resenas != null && (
+                  <span> · {atractivo.total_resenas} reseña(s)</span>
+                )}
               </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {recomendados.map((item) => (
-                  <TarjetaCercano key={item.id ?? item.slug ?? item.nombre} tipo="atractivo" item={item} />
-                ))}
-              </div>
+            )}
+
+            {descripcion && (
+              <p className="mt-5 whitespace-pre-line leading-relaxed text-slate-600">{descripcion}</p>
+            )}
+
+            {(climaValor || mesesValor) && (
+              <section className="mt-8 rounded-2xl bg-sky-50/80 p-5 ring-1 ring-sky-100">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-sky-800">Clima e info</h2>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {climaValor && (
+                    <div>
+                      <p className="text-xs font-semibold text-sky-600">Clima</p>
+                      <p className="mt-0.5 text-sm font-medium text-slate-800">{climaValor}</p>
+                    </div>
+                  )}
+                  {mesesValor && (
+                    <div>
+                      <p className="text-xs font-semibold text-sky-600">Meses recomendados</p>
+                      <p className="mt-0.5 text-sm font-medium text-slate-800">{mesesValor}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {comoLlegar.length > 0 && (
+              <section className="mt-8">
+                <h2 className="font-display text-xl font-bold text-slate-900">Accesibilidad</h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {comoLlegar.map((item) => (
+                    <div
+                      key={item.etiqueta}
+                      className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-200/80"
+                    >
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primario/10 text-primario">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" strokeLinejoin="round" />
+                          <circle cx="12" cy="10" r="2" />
+                        </svg>
+                      </span>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.etiqueta}</p>
+                        <p className="text-sm font-medium text-slate-800">{item.valor}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {servicios.length > 0 && (
+              <section className="mt-8">
+                <h2 className="font-display text-xl font-bold text-slate-900">Servicios</h2>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {servicios.map((s, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-2 rounded-full bg-primario/10 px-4 py-2 text-sm font-semibold text-primario"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {actividades.length > 0 && (
+              <section className="mt-8">
+                <h2 className="font-display text-xl font-bold text-slate-900">Actividades</h2>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {actividades.map((a, i) => (
+                    <span key={i} className="rounded-full bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 ring-1 ring-amber-100">
+                      {a}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {infoRapida.length > 0 && (
+              <section className="mt-8">
+                <h2 className="font-display text-xl font-bold text-slate-900">Información práctica</h2>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {infoRapida.map((item) => (
+                    <div key={item.etiqueta} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200/80">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.etiqueta}</p>
+                      <p className="mt-1 text-sm font-medium text-slate-700">{item.valor}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200/80">
+              {horarioValor && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Horario</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-800">{horarioValor}</p>
+                </div>
+              )}
+              {atractivo.direccion && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Dirección</p>
+                  <p className="mt-1 text-sm text-slate-700">{atractivo.direccion}</p>
+                </div>
+              )}
+              {(atractivo.latitud != null && atractivo.longitud != null) && (
+                <>
+                  <MiniMapa lat={atractivo.latitud} lng={atractivo.longitud} nombre={nombre} />
+                  <div className="mt-3">
+                    <BotonComoLlegar lat={atractivo.latitud} lng={atractivo.longitud} />
+                  </div>
+                </>
+              )}
             </div>
-          )}
-        </section>
-      )}
 
-      {atractivo.id && (
-        <SeccionResenas entidadTipo="atractivo" entidadId={atractivo.id} />
-      )}
+            {mesesValor && (
+              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200/80">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Recomendaciones</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{mesesValor}</p>
+              </div>
+            )}
+          </aside>
+        </div>
 
-      <div className="detalle-volver-bar">
-        <Link to="/atractivos" className="text-sm font-medium text-primario hover:underline">
-          ← Volver al catálogo de atractivos
-        </Link>
+        {recomendados.length > 0 && (
+          <section className="mt-12 rounded-3xl bg-primario/5 px-4 py-10 sm:px-8">
+            <h2 className="font-display text-2xl font-extrabold text-slate-900">Cercanos y recomendados</h2>
+            <p className="mt-1 text-sm text-slate-500">Otros lugares que podrían interesarte.</p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {recomendados.map((item) => (
+                <TarjetaCercano key={item.id ?? item.slug ?? item.nombre} tipo="atractivo" item={item} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {atractivo.id && (
+          <SeccionResenas entidadTipo="atractivo" entidadId={atractivo.id} />
+        )}
+
+        <div className="detalle-volver-bar mt-8">
+          <Link to="/atractivos" className="text-sm font-medium text-primario hover:underline">
+            ← Volver al catálogo de atractivos
+          </Link>
+        </div>
       </div>
     </div>
   );

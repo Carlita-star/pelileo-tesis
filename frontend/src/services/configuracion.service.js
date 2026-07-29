@@ -19,6 +19,20 @@ function faviconMimeType(url) {
   return 'image/x-icon';
 }
 
+/** Oscurece un hex para hover de botones (primarioOscuro). */
+export function darkenHex(hex, factor = 0.18) {
+  const raw = String(hex || '').replace('#', '').trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(raw)) {
+    return CONFIG_DEFAULT.colores.primarioOscuro;
+  }
+  const num = parseInt(raw, 16);
+  const channel = (shift) => Math.max(0, Math.round(((num >> shift) & 255) * (1 - factor)));
+  const r = channel(16);
+  const g = channel(8);
+  const b = channel(0);
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
 /** Aplica colores y fuentes institucionales al documento. */
 export function applyThemeVariables(cfg) {
   if (!cfg) return;
@@ -27,18 +41,18 @@ export function applyThemeVariables(cfg) {
   const colores = cfg.colores || CONFIG_DEFAULT.colores;
 
   raiz.style.setProperty('--color-primario', colores.primario);
-  raiz.style.setProperty('--color-primario-oscuro', colores.primarioOscuro);
+  raiz.style.setProperty('--color-primario-oscuro', colores.primarioOscuro || darkenHex(colores.primario));
   raiz.style.setProperty('--color-secundario', colores.secundario);
   if (colores.terciario) {
     raiz.style.setProperty('--color-terciario', colores.terciario);
   }
   if (cfg.fuente) {
+    // Tailwind `font-sans` usa --font-portal; el portal lee ambas.
+    raiz.style.setProperty('--font-portal', cfg.fuente);
     raiz.style.setProperty('--fuente-principal', cfg.fuente);
-    document.body.style.fontFamily = cfg.fuente;
   }
   if (cfg.tamanoFuente) {
     raiz.style.setProperty('--tamano-fuente-base', `${cfg.tamanoFuente}px`);
-    document.body.style.fontSize = `${cfg.tamanoFuente}px`;
   }
   if (cfg.bordeRadio != null) {
     raiz.style.setProperty('--borde-radio', `${cfg.bordeRadio}px`);
@@ -54,8 +68,8 @@ function normalizeHeader(headerCfg = {}) {
     mostrarRedes: headerCfg.mostrar_redes === true,
     textoSuperior: headerCfg.texto_superior?.trim() || '',
     sticky: headerCfg.sticky !== false,
-    colorFondo: headerCfg.color_fondo,
-    colorTexto: headerCfg.color_texto,
+    colorFondo: headerCfg.color_fondo || CONFIG_DEFAULT.header.colorFondo,
+    colorTexto: headerCfg.color_texto || CONFIG_DEFAULT.header.colorTexto,
     altura: headerCfg.altura_header,
   };
 }
@@ -74,6 +88,8 @@ function normalizeFooter(footerCfg = {}, empresa = {}) {
     mostrarRedes: footerCfg.mostrar_redes !== false,
     mostrarContacto: footerCfg.mostrar_contacto !== false,
     mostrarMapa: footerCfg.mostrar_mapa !== false,
+    colorFondo: footerCfg.color_fondo || CONFIG_DEFAULT.footer.colorFondo,
+    colorTexto: footerCfg.color_texto || CONFIG_DEFAULT.footer.colorTexto,
     contacto: {
       ciudad: `${empresa.canton || 'Pelileo'}, ${empresa.provincia || 'Tungurahua'}`,
       web: (() => {
@@ -123,6 +139,7 @@ export function mapConfiguracionApi(data) {
 
   const primario = apariencia.color_primario || data.color_primario || CONFIG_DEFAULT.colores.primario;
   const secundario = apariencia.color_secundario || data.color_secundario || CONFIG_DEFAULT.colores.secundario;
+  const terciario = apariencia.color_terciario || data.color_terciario || CONFIG_DEFAULT.colores.terciario;
 
   return {
     nombreSistema: data.nombreSistema || empresa.nombre_comercial || empresa.nombre || CONFIG_DEFAULT.nombreSistema,
@@ -138,9 +155,9 @@ export function mapConfiguracionApi(data) {
     imagenSeccionInicioUrl: mediaUrl(data.imagenSeccionInicioUrl || empresa.imagen_seccion_inicio_url),
     colores: {
       primario,
-      primarioOscuro: secundario || CONFIG_DEFAULT.colores.primarioOscuro,
-      secundario: apariencia.color_terciario || data.color_terciario || CONFIG_DEFAULT.colores.secundario,
-      terciario: apariencia.color_terciario || data.color_terciario,
+      primarioOscuro: darkenHex(primario),
+      secundario,
+      terciario,
     },
     fuente: apariencia.fuente_principal || data.fuente_principal,
     tamanoFuente: apariencia.tamano_fuente_base || data.tamano_fuente_base || 16,

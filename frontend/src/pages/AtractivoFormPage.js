@@ -45,6 +45,7 @@ const AtractivoFormPage = () => {
       direccion: '',
       horario: '',
       precio_referencial: null,
+      destacado: false,
     },
     ubicacion: {
       latitud: null,
@@ -516,6 +517,20 @@ const AtractivoFormPage = () => {
                     value={formData.general.precio_referencial || ''}
                     onChange={(e) => handleInputChange('general', 'precio_referencial', e.target.value ? parseFloat(e.target.value) : null)}
                   />
+                </div>
+
+                <div className="form-group form-full">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.general.destacado)}
+                      onChange={(e) => handleCheckboxChange('general', 'destacado', e.target.checked)}
+                    />
+                    Mostrar como destacado en el inicio
+                  </label>
+                  <p className="section-note" style={{ marginTop: 6 }}>
+                    Si está activo, este atractivo puede aparecer en la sección “Destinos destacados” del portal.
+                  </p>
                 </div>
               </form>
             </div>

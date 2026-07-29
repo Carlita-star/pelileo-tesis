@@ -106,9 +106,11 @@ function PublicProfileMenu() {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-3 shadow-sm transition hover:border-slate-300"
+        className="rounded-full border-2 border-white/25 p-0.5 shadow-sm transition hover:border-white/50 hover:opacity-90"
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={`Cuenta de ${displayName}`}
+        title={displayName}
       >
         {fotoUrl ? (
           <img src={fotoUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
@@ -117,8 +119,6 @@ function PublicProfileMenu() {
             {getInitials(usuario)}
           </span>
         )}
-        <span className="max-w-[120px] truncate text-sm font-semibold text-slate-800">{displayName}</span>
-        <span className="text-xs text-slate-400" aria-hidden="true">▾</span>
       </button>
 
       {open && (

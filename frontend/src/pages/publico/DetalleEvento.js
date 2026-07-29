@@ -64,73 +64,98 @@ function DetalleEvento() {
   const precio = evento.costo == null || Number(evento.costo) === 0 ? 'Entrada libre' : `$ ${evento.costo}`;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10">
-      {imagenes.length > 0 && (
-        <GaleriaDetalle imagenes={imagenes} titulo={evento.nombre} />
-      )}
+    <div className="min-h-screen bg-[#f7f8f6]">
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <nav className="mb-5 text-sm text-slate-500">
+          <Link to="/" className="hover:text-primario">Inicio</Link>
+          <span className="mx-2">/</span>
+          <Link to="/eventos" className="hover:text-primario">Eventos</Link>
+          <span className="mx-2">/</span>
+          <span className="text-slate-700">{evento.nombre}</span>
+        </nav>
 
-      <header className="mt-8">
-        <div className="flex flex-wrap items-center gap-2">
-          {evento.categoria && (
-            <span className="rounded-full bg-primario/10 px-3 py-1 text-xs font-semibold text-primario">{evento.categoria}</span>
-          )}
-          {estado && (
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{estado}</span>
-          )}
+        {imagenes.length > 0 ? (
+          <GaleriaDetalle imagenes={imagenes} titulo={evento.nombre} />
+        ) : (
+          <div className="flex h-56 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-amber-50 to-slate-100 text-slate-400">
+            <span className="text-4xl font-black text-primario/20">{evento.nombre?.charAt(0) ?? 'E'}</span>
+            <span className="mt-2 text-sm">Fotos próximamente</span>
+          </div>
+        )}
+
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_300px]">
+          <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200/80 sm:p-8">
+            <div className="flex flex-wrap gap-2">
+              {evento.categoria && (
+                <span className="rounded-full bg-primario/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-primario">
+                  {evento.categoria}
+                </span>
+              )}
+              {estado && (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  {estado}
+                </span>
+              )}
+            </div>
+            <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+              {evento.nombre}
+            </h1>
+            {ini && (
+              <p className="mt-3 text-slate-600">
+                {ini}{fin && fin !== ini ? ` — ${fin}` : ''}
+              </p>
+            )}
+            {evento.descripcion && (
+              <p className="mt-5 whitespace-pre-line leading-relaxed text-slate-600">{evento.descripcion}</p>
+            )}
+          </div>
+
+          <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200/80">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Información</p>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase text-slate-400">Entrada</p>
+                  <p className="text-sm font-semibold text-slate-800">{precio}</p>
+                </div>
+                {evento.organizador && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase text-slate-400">Organizador</p>
+                    <p className="text-sm font-medium text-slate-800">{evento.organizador}</p>
+                  </div>
+                )}
+                {evento.contacto && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase text-slate-400">Contacto</p>
+                    <p className="text-sm font-medium text-slate-800">{evento.contacto}</p>
+                  </div>
+                )}
+                {evento.direccion && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase text-slate-400">Lugar</p>
+                    <p className="text-sm text-slate-700">{evento.direccion}</p>
+                  </div>
+                )}
+              </div>
+              {evento.latitud != null && evento.longitud != null && (
+                <div className="mt-4">
+                  <MiniMapa lat={evento.latitud} lng={evento.longitud} nombre={evento.nombre} />
+                  <div className="mt-3">
+                    <BotonComoLlegar lat={evento.latitud} lng={evento.longitud} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
-        <h1 className="mt-3 text-3xl font-extrabold text-slate-900">{evento.nombre}</h1>
-        {ini && (
-          <p className="mt-3 text-slate-600">
-            {ini}{fin && fin !== ini ? ` — ${fin}` : ''}
-          </p>
-        )}
-        <p className="mt-2 inline-block rounded-md bg-slate-100 px-2.5 py-1 text-sm font-medium text-slate-600">{precio}</p>
-      </header>
 
-      {evento.descripcion && (
-        <section className="mt-8">
-          <h2 className="text-xl font-bold text-slate-800">Descripción</h2>
-          <p className="mt-3 whitespace-pre-line text-slate-600 leading-relaxed">{evento.descripcion}</p>
-        </section>
-      )}
+        <SeccionResenas entidadTipo="evento" entidadId={evento.id} />
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2">
-        {evento.organizador && (
-          <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
-            <p className="text-xs font-semibold uppercase text-slate-500">Organizador</p>
-            <p className="mt-1 font-medium text-slate-800">{evento.organizador}</p>
-          </div>
-        )}
-        {evento.contacto && (
-          <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
-            <p className="text-xs font-semibold uppercase text-slate-500">Contacto</p>
-            <p className="mt-1 font-medium text-slate-800">{evento.contacto}</p>
-          </div>
-        )}
-        {evento.direccion && (
-          <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 sm:col-span-2">
-            <p className="text-xs font-semibold uppercase text-slate-500">Ubicación</p>
-            <p className="mt-1 font-medium text-slate-800">{evento.direccion}</p>
-          </div>
-        )}
-      </section>
-
-      {evento.latitud != null && evento.longitud != null && (
-        <section className="mt-8">
-          <h2 className="text-xl font-bold text-slate-800">Mapa</h2>
-          <div className="mt-4">
-            <MiniMapa lat={evento.latitud} lng={evento.longitud} nombre={evento.nombre} />
-          </div>
-          <div className="mt-3">
-            <BotonComoLlegar lat={evento.latitud} lng={evento.longitud} />
-          </div>
-        </section>
-      )}
-
-      <SeccionResenas entidadTipo="evento" entidadId={evento.id} />
-
-      <div className="detalle-volver-bar">
-        <Link to="/eventos" className="text-sm font-medium text-primario hover:underline">← Volver a eventos</Link>
+        <div className="detalle-volver-bar mt-8">
+          <Link to="/eventos" className="text-sm font-medium text-primario hover:underline">
+            ← Volver a eventos
+          </Link>
+        </div>
       </div>
     </div>
   );

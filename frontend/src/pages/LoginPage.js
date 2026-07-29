@@ -256,12 +256,14 @@ function LoginPage({ initialView = 'login' }) {
     navigate(ADMIN_PATHS.recuperar, { replace: true });
   };
 
+  const fondoLogin = config.imagenSeccionInicioUrl || config.logoSecundarioUrl || config.logoUrl;
+
   return (
-    <div className={`login-page${config.logoUrl ? ' login-page--with-logo' : ''}`}>
-      {config.logoUrl && (
+    <div className={`login-page${fondoLogin ? ' login-page--with-logo' : ''}`}>
+      {fondoLogin && (
         <div
           className="login-page__bg"
-          style={{ backgroundImage: `url(${config.logoUrl})` }}
+          style={{ backgroundImage: `url(${fondoLogin})` }}
           aria-hidden
         />
       )}
@@ -273,11 +275,11 @@ function LoginPage({ initialView = 'login' }) {
             prefer="primary"
             imgClassName="login-hero-logo login-hero-logo-img"
             fallbackClassName="login-hero-logo"
-            fallbackText="GAD"
+            fallbackText="PT"
           />
           <div className="login-hero-text">
             <p className="login-hero-name">{config.nombreSistema || 'Pelileo Turismo'}</p>
-            <p className="login-hero-sub">{config.eslogan || 'Portal turístico'}</p>
+            <p className="login-hero-sub">Panel Administrativo</p>
           </div>
         </div>
 

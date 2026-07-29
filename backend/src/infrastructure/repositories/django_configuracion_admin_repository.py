@@ -24,7 +24,6 @@ MENU_DEFAULT = [
     ('Rutas', '/rutas'),
     ('Emprendimientos', '/emprendimientos'),
     ('Eventos', '/eventos'),
-    ('Mapa', '/mapa'),
 ]
 
 IMAGEN_TIPOS = ('logo_principal', 'logo_secundario', 'favicon', 'imagen_seccion_inicio')
@@ -72,13 +71,23 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
     def _get_or_create_header(self, empresa: Empresa) -> ConfiguracionHeader:
         header = empresa.headers.order_by('id').first()
         if not header:
-            header = ConfiguracionHeader.objects.create(empresa=empresa)
+            header = ConfiguracionHeader.objects.create(
+                empresa=empresa,
+                color_fondo='#0f172a',
+                color_texto='#ffffff',
+                mostrar_buscador=False,
+                mostrar_redes=False,
+            )
         return header
 
     def _get_or_create_footer(self, empresa: Empresa) -> ConfiguracionFooter:
         footer = empresa.footers.order_by('id').first()
         if not footer:
-            footer = ConfiguracionFooter.objects.create(empresa=empresa)
+            footer = ConfiguracionFooter.objects.create(
+                empresa=empresa,
+                color_fondo='#0f172a',
+                color_texto='#e2e8f0',
+            )
         return footer
 
     def _get_or_create_apariencia(self, empresa: Empresa) -> AparienciaSistema:
@@ -286,6 +295,8 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         ]
 
         primario = apariencia.get('color_primario') or '#1D9E75'
+        secundario = apariencia.get('color_secundario') or '#F9A825'
+        terciario = apariencia.get('color_terciario') or '#2563EB'
 
         return {
             'empresa': empresa,
@@ -306,9 +317,8 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
             'faviconUrl': empresa.get('favicon_url'),
             'imagenSeccionInicioUrl': empresa.get('imagen_seccion_inicio_url'),
             'color_primario': primario,
-            'color_primario_oscuro': apariencia.get('color_secundario') or '#157A5A',
-            'color_secundario': apariencia.get('color_terciario') or '#F9A825',
-            'color_terciario': apariencia.get('color_terciario'),
+            'color_secundario': secundario,
+            'color_terciario': terciario,
             'fuente_principal': apariencia.get('fuente_principal'),
             'tamano_fuente_base': apariencia.get('tamano_fuente_base'),
             'modo_oscuro': apariencia.get('modo_oscuro'),
@@ -382,6 +392,23 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         apariencia.sombra_global = bool(payload.get('sombra_global', apariencia.sombra_global))
         apariencia.save()
 
+        # Colores de header/footer se gestionan desde Apariencia (misma pantalla visual).
+        header_colors = payload.get('header') or {}
+        footer_colors = payload.get('footer') or {}
+        if header_colors or footer_colors:
+            header = self._get_or_create_header(empresa)
+            footer = self._get_or_create_footer(empresa)
+            if 'color_fondo' in header_colors:
+                header.color_fondo = (header_colors.get('color_fondo') or '').strip() or None
+            if 'color_texto' in header_colors:
+                header.color_texto = (header_colors.get('color_texto') or '').strip() or None
+            if 'color_fondo' in footer_colors:
+                footer.color_fondo = (footer_colors.get('color_fondo') or '').strip() or None
+            if 'color_texto' in footer_colors:
+                footer.color_texto = (footer_colors.get('color_texto') or '').strip() or None
+            header.save()
+            footer.save()
+
         self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'apariencia'})
         return self.obtener_completo()
 
@@ -429,6 +456,15 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         header.mostrar_redes = bool(header_data.get('mostrar_redes', header.mostrar_redes))
         header.texto_superior = (header_data.get('texto_superior') or '').strip() or None
         header.sticky = bool(header_data.get('sticky', header.sticky))
+        if 'color_fondo' in header_data:
+            header.color_fondo = (header_data.get('color_fondo') or '').strip() or None
+        if 'color_texto' in header_data:
+            header.color_texto = (header_data.get('color_texto') or '').strip() or None
+        if header_data.get('altura_header') is not None and header_data.get('altura_header') != '':
+            try:
+                header.altura_header = int(header_data.get('altura_header'))
+            except (TypeError, ValueError):
+                pass
         header.save()
 
         footer_data = payload.get('footer') or {}
@@ -437,6 +473,10 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         footer.mostrar_contacto = bool(footer_data.get('mostrar_contacto', footer.mostrar_contacto))
         footer.mostrar_mapa = bool(footer_data.get('mostrar_mapa', footer.mostrar_mapa))
         footer.copyright_texto = (footer_data.get('copyright_texto') or '').strip() or None
+        if 'color_fondo' in footer_data:
+            footer.color_fondo = (footer_data.get('color_fondo') or '').strip() or None
+        if 'color_texto' in footer_data:
+            footer.color_texto = (footer_data.get('color_texto') or '').strip() or None
         footer.save()
 
         self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'header_footer'})
