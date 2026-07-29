@@ -11,6 +11,8 @@ from src.domain.auditorias.models import Auditoria
 from src.domain.catalogos.estados_publicacion import EstadoPublicacion
 from src.domain.catalogos.parroquias import Parroquia
 from src.domain.rutas.models import Ruta, RutaAtractivo
+from src.domain.multimedia.models import Multimedia
+from src.domain.shared.media_urls import build_media_url
 
 
 class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
@@ -34,7 +36,8 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
         page_size: int = 20,
     ) -> Dict[str, Any]:
         queryset = (
-            Ruta.objects.select_related('parroquia', 'estado_publicacion')
+            Ruta.objects.filter(activo=True)
+            .select_related('parroquia', 'estado_publicacion')
             .annotate(total_atractivos=Count('atractivos', filter=Q(atractivos__activo=True)))
             .order_by('-creado_en')
         )
@@ -50,11 +53,25 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
         offset = (page - 1) * page_size
         items = list(queryset[offset:offset + page_size])
 
+        rutas_ids = [item.id for item in items]
+        multimedia_items = Multimedia.objects.filter(
+            entidad_tipo='ruta',
+            entidad_id__in=rutas_ids,
+            tipo='imagen',
+            activo=True,
+        ).order_by('entidad_id', '-principal', 'orden')
+
+        thumbnails: Dict[int, str] = {}
+        for media in multimedia_items:
+            if media.entidad_id not in thumbnails:
+                thumbnails[media.entidad_id] = build_media_url(media.archivo) or ''
+
         results = []
         for ruta in items:
             results.append({
                 'id': ruta.id,
                 'nombre': ruta.nombre,
+                'imagen': thumbnails.get(ruta.id),
                 'total_atractivos': ruta.total_atractivos,
                 'distancia_km': float(ruta.distancia_km) if ruta.distancia_km else None,
                 'dificultad': ruta.dificultad,
@@ -109,14 +126,21 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
         if not ruta:
             return None
 
-        atractivos_orden = list(
+        atractivos_orden = (
             RutaAtractivo.objects.filter(ruta=ruta, activo=True)
+            .select_related('atractivo')
             .order_by('orden_recorrido')
-            .values('atractivo_id', 'orden_recorrido')
         )
 
         return {
             'id': ruta.id,
+            'meta': {
+                'parroquia': ruta.parroquia.nombre if ruta.parroquia_id else None,
+                'estado_publicacion': ruta.estado_publicacion.nombre if ruta.estado_publicacion_id else None,
+                'creado_en': ruta.creado_en.isoformat() if ruta.creado_en else None,
+                'actualizado_en': ruta.actualizado_en.isoformat() if ruta.actualizado_en else None,
+                'visitas': ruta.visitas,
+            },
             'general': {
                 'nombre': ruta.nombre,
                 'descripcion': ruta.descripcion,
@@ -128,7 +152,15 @@ class DjangoRutaAdminRepository(RutaAdminRepositoryPort):
                 'parroquia_id': ruta.parroquia_id,
             },
             'atractivos_orden': [
-                {'atractivo_id': item['atractivo_id'], 'orden': item['orden_recorrido']}
+                {'atractivo_id': item.atractivo_id, 'orden': item.orden_recorrido}
+                for item in atractivos_orden
+            ],
+            'puntos_interes': [
+                {
+                    'orden': item.orden_recorrido,
+                    'atractivo_id': item.atractivo_id,
+                    'nombre': item.atractivo.nombre if item.atractivo_id else None,
+                }
                 for item in atractivos_orden
             ],
             'geojson_ruta': ruta.geojson_ruta,

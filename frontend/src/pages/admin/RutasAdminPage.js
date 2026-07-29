@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
+import AdminDetailModal from '../../components/admin/AdminDetailModal';
+import DownloadFichaButton from '../../components/admin/DownloadFichaButton';
+import { useAdminDetail } from '../../hooks/useAdminDetail';
+import { useErrorToast } from '../../hooks/useErrorToast';
+import { useListSearch } from '../../hooks/useListSearch';
+import { urlImagen } from '../../services/media';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -11,11 +17,12 @@ const ESTADO_COLOR = {
 
 function RutasAdminPage() {
   const navigate = useNavigate();
+  const detail = useAdminDetail();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rutas, setRutas] = useState([]);
   const [estados, setEstados] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useListSearch();
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -48,13 +55,22 @@ function RutasAdminPage() {
     fetchRutas();
   }, [search, estado, page, pageSize]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchRutas } });
+
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta ruta?')) return;
+    if (!window.confirm('¿Enviar esta ruta a la papelera? Podrá restaurarla después desde el dashboard.')) return;
     try {
+      setLoading(true);
       await apiRequest(`/api/admin/rutas/${id}/`, { method: 'DELETE' });
-      fetchRutas();
+      await fetchRutas();
     } catch (err) {
       setError('Error al eliminar la ruta.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -102,6 +118,7 @@ function RutasAdminPage() {
         <table className="entity-table">
           <thead>
             <tr>
+              <th>Imagen</th>
               <th>Nombre</th>
               <th>Atractivos</th>
               <th>Distancia</th>
@@ -112,12 +129,19 @@ function RutasAdminPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6"><div className="table-spinner"><div className="loader" />Cargando...</div></td></tr>
+              <tr><td colSpan="7"><div className="table-spinner"><div className="loader" />Cargando...</div></td></tr>
             ) : rutas.length === 0 ? (
-              <tr><td colSpan="6"><p className="empty-state">No hay rutas registradas.</p></td></tr>
+              <tr><td colSpan="7"><p className="empty-state">No hay rutas registradas.</p></td></tr>
             ) : (
               rutas.map((item) => (
                 <tr key={item.id}>
+                  <td>
+                    {item.imagen ? (
+                      <img className="thumbnail" src={urlImagen(item.imagen)} alt={item.nombre} />
+                    ) : (
+                      <div className="thumbnail placeholder">No imagen</div>
+                    )}
+                  </td>
                   <td>{item.nombre}</td>
                   <td>{item.total_atractivos ?? 0}</td>
                   <td>{item.distancia_km ?? '---'} km</td>
@@ -128,9 +152,13 @@ function RutasAdminPage() {
                     </span>
                   </td>
                   <td className="actions-cell">
-                    <button type="button" onClick={() => navigate(ADMIN_PATHS.rutaEditar(item.id))}>✏️</button>
-                    <button type="button" onClick={() => handleToggleEstado(item)}>👁️</button>
-                    <button type="button" onClick={() => handleDelete(item.id)}>🗑️</button>
+                    <div className="actions-cell-group">
+                    <button type="button" className="action-btn action-btn--view" onClick={() => detail.openDetail('ruta', item.id)} title="Ver detalle">Ver</button>
+                    <DownloadFichaButton type="ruta" id={item.id} compact />
+                    <button type="button" className="action-btn" onClick={() => navigate(ADMIN_PATHS.rutaEditar(item.id))} title="Editar">✏️</button>
+                    <button type="button" className="action-btn" onClick={() => handleToggleEstado(item)} title="Cambiar estado">🔁</button>
+                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Enviar a papelera">🗑️</button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -145,9 +173,31 @@ function RutasAdminPage() {
           <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
           <span>Página {page} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>
+                {size} / página
+              </option>
+            ))}
+          </select>
         </div>
       </div>
-      {error && <p className="status-error">{error}</p>}
+
+      <AdminDetailModal
+        isOpen={detail.isOpen}
+        type={detail.type}
+        id={detail.id}
+        data={detail.data}
+        images={detail.images}
+        loading={detail.loading}
+        error={detail.error}
+        imageError={detail.imageError}
+        onClose={detail.close}
+        onEdit={detail.id ? () => {
+          detail.close();
+          navigate(ADMIN_PATHS.rutaEditar(detail.id));
+        } : undefined}
+      />
     </section>
   );
 }

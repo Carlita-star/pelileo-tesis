@@ -18,6 +18,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-family: var(--font-portal, "Manrope"), system-ui, sans-serif;
+    font-size: var(--tamano-fuente-base, 16px);
   }
 
   :where(.portal-publico h1, .portal-publico h2, .portal-publico h3, .portal-publico h4, .portal-publico h5, .portal-publico h6, .portal-publico p, .portal-publico figure, .portal-publico ul, .portal-publico ol) {
@@ -60,4 +62,25 @@ html {
    siempre quede por encima. */
 .portal-publico .leaflet-container {
   z-index: 0;
+}
+
+.portal-publico .leaflet-top.leaflet-left {
+  top: auto;
+  bottom: 1rem;
+  left: 12px;
+}
+
+/* Radio de bordes desde Apariencia (no aplica a pastillas .rounded-full). */
+.portal-publico :where(.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl):not(.rounded-full) {
+  border-radius: var(--borde-radio, 10px);
+}
+
+/* Submenú del header público — puente de hover desktop */
+.nav-submenu-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0.35rem;
 }

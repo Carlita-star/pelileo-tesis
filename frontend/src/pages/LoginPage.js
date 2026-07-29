@@ -2,10 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { saveSession, isAuthenticated, clearSession, hasPanelAccess } from '../services/authStorage';
 import { ADMIN_PATHS } from '../routes/adminPaths';
+import { useConfiguracion } from '../context/ConfiguracionContext';
+import InstitutionalLogoMark from '../components/InstitutionalLogoMark';
+import { validateRegisterForm } from '../utils/adminFormSchemas';
+import FormValidationBanner, { FieldError, fieldClass } from '../components/FormValidationBanner';
+import { filterDigitsOnly } from '../utils/formValidation';
+import { useToast } from '../context/ToastContext';
+import { useErrorToast } from '../hooks/useErrorToast';
 
 function LoginPage({ initialView = 'login' }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const config = useConfiguracion();
+  const toast = useToast();
   const token = useMemo(() => new URLSearchParams(window.location.search).get('token'), []);
   const [view, setView] = useState(() => {
     if (token) return 'reset';
@@ -14,8 +23,21 @@ function LoginPage({ initialView = 'login' }) {
   });
 
   useEffect(() => {
-    if (isAuthenticated() && hasPanelAccess()) {
+    if (token) {
+      setView('reset');
+      return;
+    }
+    if (location.pathname === ADMIN_PATHS.recuperar) {
+      setView('recover');
+    }
+  }, [location.pathname, token]);
+
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    if (hasPanelAccess()) {
       navigate(ADMIN_PATHS.dashboard, { replace: true });
+    } else {
+      navigate('/', { replace: true });
     }
   }, [navigate]);
 
@@ -33,6 +55,7 @@ function LoginPage({ initialView = 'login' }) {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -40,8 +63,24 @@ function LoginPage({ initialView = 'login' }) {
     if (location.state?.reason === 'no-role') {
       clearSession();
       setError('Tu cuenta no tiene permisos para el panel. Inicia sesión de nuevo.');
+      return;
     }
-  }, [location.state]);
+
+    const sesion = new URLSearchParams(location.search).get('sesion');
+    if (sesion === 'expirada') {
+      clearSession();
+      setError('Tu sesión expiró. Inicia sesión de nuevo.');
+    } else if (sesion === 'sin-permisos') {
+      clearSession();
+      setError('Tu sesión no es válida o no tienes permisos. Inicia sesión de nuevo.');
+    }
+  }, [location.state, location.search]);
+
+  useErrorToast(error);
+
+  useEffect(() => {
+    if (success) toast.success(success);
+  }, [success, toast]);
 
   const API_BASE = process.env.REACT_APP_API_URL ?? 'http://localhost:8000';
 
@@ -73,7 +112,15 @@ function LoginPage({ initialView = 'login' }) {
       }
 
       saveSession({ usuario: data.usuario, token: data.token });
-      navigate(ADMIN_PATHS.dashboard, { replace: true });
+
+      if (hasPanelAccess(data.usuario)) {
+        navigate(ADMIN_PATHS.dashboard, { replace: true });
+        return;
+      }
+
+      const from = location.state?.from;
+      const destino = from && !from.startsWith('/admin') ? from : '/';
+      navigate(destino, { replace: true });
     } catch (err) {
       setError('No se pudo conectar al servidor.');
     } finally {
@@ -112,10 +159,20 @@ function LoginPage({ initialView = 'login' }) {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (registerPassword !== registerConfirmPassword) {
-      setError('Las contraseñas no coinciden.');
+    const validation = validateRegisterForm({
+      nombres,
+      apellidos,
+      registerUsername,
+      registerEmail,
+      registerPassword,
+      registerConfirmPassword,
+    });
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      setError(validation.message);
       return;
     }
+    setFieldErrors({});
 
     setLoading(true);
     try {
@@ -137,14 +194,8 @@ function LoginPage({ initialView = 'login' }) {
         return;
       }
 
-      setSuccess(data.message || 'Registro exitoso. Ya puedes iniciar sesión.');
-      setView('login');
-      setNombres('');
-      setApellidos('');
-      setRegisterUsername('');
-      setRegisterEmail('');
-      setRegisterPassword('');
-      setRegisterConfirmPassword('');
+      toast.success(data.message || 'Registro exitoso. Ya puedes explorar el portal turístico.');
+      navigate('/', { replace: true });
     } catch (err) {
       setError('No se pudo conectar al servidor.');
     } finally {
@@ -198,24 +249,45 @@ function LoginPage({ initialView = 'login' }) {
     navigate(ADMIN_PATHS.login, { replace: true });
   };
 
+  const goToRecover = () => {
+    setError('');
+    setSuccess('');
+    setView('recover');
+    navigate(ADMIN_PATHS.recuperar, { replace: true });
+  };
+
+  const fondoLogin = config.imagenSeccionInicioUrl || config.logoSecundarioUrl || config.logoUrl;
+
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-top">
-          <div className="login-logo">GAD</div>
-          <div className="login-branding">
-            <p className="login-brand-name">Pelileo</p>
-            <p className="login-brand-subtitle">Panel administrativo turístico</p>
+    <div className={`login-page${fondoLogin ? ' login-page--with-logo' : ''}`}>
+      {fondoLogin && (
+        <div
+          className="login-page__bg"
+          style={{ backgroundImage: `url(${fondoLogin})` }}
+          aria-hidden
+        />
+      )}
+      <div className="login-page__overlay" aria-hidden />
+
+      <div className="login-page__content">
+        <div className="login-hero">
+          <InstitutionalLogoMark
+            prefer="primary"
+            imgClassName="login-hero-logo login-hero-logo-img"
+            fallbackClassName="login-hero-logo"
+            fallbackText="PT"
+          />
+          <div className="login-hero-text">
+            <p className="login-hero-name">{config.nombreSistema || 'Pelileo Turismo'}</p>
+            <p className="login-hero-sub">Panel Administrativo</p>
           </div>
         </div>
 
+        <div className="login-card">
         {view === 'login' && (
           <>
-            <h1>Iniciar sesión</h1>
-            <p className="login-description">Ingresa tus credenciales para acceder al panel administrativo.</p>
-
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
+            <h1>Inicio de sesión</h1>
+            <p className="login-description">Ingresa tus credenciales de personal autorizado del GAD.</p>
 
             <form className="login-form" onSubmit={handleLogin}>
               <label className="login-field">
@@ -252,16 +324,17 @@ function LoginPage({ initialView = 'login' }) {
               </label>
 
               <button type="submit" className="login-button" disabled={loading}>
-                {loading ? 'Ingresando...' : 'INGRESAR'}
+                {loading ? 'Ingresando...' : 'Iniciar sesión'}
               </button>
             </form>
 
             <div className="login-help">
-              <button type="button" className="login-link" onClick={() => navigate(ADMIN_PATHS.recuperar)}>
-                olvidé mi contraseña
+              <button type="button" className="login-link" onClick={goToRecover}>
+                ¿Olvidaste tu contraseña?
               </button>
+              <span className="login-help-sep" aria-hidden>·</span>
               <button type="button" className="login-link" onClick={() => setView('register')}>
-                crear una cuenta
+                Crear una cuenta
               </button>
             </div>
           </>
@@ -269,11 +342,10 @@ function LoginPage({ initialView = 'login' }) {
 
         {view === 'register' && (
           <>
-            <h1>Crear cuenta</h1>
-            <p className="login-description">Regístrate para acceder al panel administrativo.</p>
-
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
+            <h1>Crear cuenta de visitante</h1>
+            <p className="login-description">
+              Regístrate para usar el portal turístico. Esta cuenta no tiene acceso al panel administrativo.
+            </p>
 
             <form className="login-form" onSubmit={handleRegister}>
               <label className="login-field">
@@ -283,12 +355,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="text"
                     value={nombres}
+                    className={fieldClass(fieldErrors.nombres)}
                     onChange={(e) => setNombres(e.target.value)}
                     placeholder="Nombres"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.nombres} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Apellidos</span>
@@ -297,12 +370,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="text"
                     value={apellidos}
+                    className={fieldClass(fieldErrors.apellidos)}
                     onChange={(e) => setApellidos(e.target.value)}
                     placeholder="Apellidos"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.apellidos} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Nombre de usuario</span>
@@ -311,12 +385,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="text"
                     value={registerUsername}
+                    className={fieldClass(fieldErrors.registerUsername)}
                     onChange={(e) => setRegisterUsername(e.target.value)}
                     placeholder="Nombre de usuario"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerUsername} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Correo electrónico</span>
@@ -325,12 +400,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type="email"
                     value={registerEmail}
+                    className={fieldClass(fieldErrors.registerEmail)}
                     onChange={(e) => setRegisterEmail(e.target.value)}
                     placeholder="Correo electrónico"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerEmail} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Contraseña</span>
@@ -339,12 +415,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={registerPassword}
+                    className={fieldClass(fieldErrors.registerPassword)}
                     onChange={(e) => setRegisterPassword(e.target.value)}
                     placeholder="Contraseña"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerPassword} />
               </label>
               <label className="login-field">
                 <span className="login-field-label">Confirmar contraseña</span>
@@ -353,12 +430,13 @@ function LoginPage({ initialView = 'login' }) {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={registerConfirmPassword}
+                    className={fieldClass(fieldErrors.registerConfirmPassword)}
                     onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                     placeholder="Confirmar contraseña"
-                    required
                     disabled={loading}
                   />
                 </div>
+                <FieldError error={fieldErrors.registerConfirmPassword} />
               </label>
 
               <button type="submit" className="login-button" disabled={loading}>
@@ -378,9 +456,6 @@ function LoginPage({ initialView = 'login' }) {
           <>
             <h1>Recuperar contraseña</h1>
             <p className="login-description">Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.</p>
-
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
 
             <form className="login-form" onSubmit={handleRequestReset}>
               <label className="login-field">
@@ -415,9 +490,6 @@ function LoginPage({ initialView = 'login' }) {
           <>
             <h1>Nueva contraseña</h1>
             <p className="login-description">Ingresa y confirma tu nueva contraseña.</p>
-
-            {error && <p className="login-error">{error}</p>}
-            {success && <p className="login-success">{success}</p>}
 
             <form className="login-form" onSubmit={handleResetPassword}>
               <label className="login-field">
@@ -465,6 +537,7 @@ function LoginPage({ initialView = 'login' }) {
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

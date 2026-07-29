@@ -5,14 +5,24 @@ import LocationMapPicker from '../../components/LocationMapPicker';
 import GalleryUploader from '../../components/GalleryUploader';
 import { apiRequest } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
+import { useToast } from '../../context/ToastContext';
+import { validateEmprendimientoForm } from '../../utils/adminFormSchemas';
+import FormValidationBanner, { FieldError, fieldClass } from '../../components/FormValidationBanner';
+import { filterSignedDecimalInput, filterDigitsOnly } from '../../utils/formValidation';
+import { useSubmitLock } from '../../hooks/useSubmitLock';
 import '../../styles/AtractivoForm.css';
 
 function EmprendimientoFormPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { id } = useParams();
   const emprendimientoId = id ? Number(id) : null;
+  const [entityId, setEntityId] = useState(emprendimientoId);
   const [loading, setLoading] = useState(Boolean(emprendimientoId));
   const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [galleryCount, setGalleryCount] = useState(0);
+  const { isSubmitting, withLock } = useSubmitLock();
   const [catalogs, setCatalogs] = useState({ parroquias: [], categorias: [], servicios: [] });
   const [formData, setFormData] = useState({
     general: {
@@ -36,6 +46,7 @@ function EmprendimientoFormPage() {
   });
 
   useEffect(() => {
+    setEntityId(emprendimientoId);
     loadData();
   }, [emprendimientoId]);
 
@@ -53,6 +64,74 @@ function EmprendimientoFormPage() {
     }
   };
 
+  const prepareFormData = async () => {
+    let general = { ...formData.general };
+
+    if (!general.parroquia_id && general.parroquia_nombre?.trim()) {
+      const created = await upsertCatalog('/api/catalogos/parroquias/', general.parroquia_nombre.trim(), 'parroquias');
+      general = { ...general, parroquia_id: created.id, parroquia_nombre: created.nombre };
+    }
+
+    if (!general.categoria_id && general.categoria_nombre?.trim()) {
+      const created = await upsertCatalog('/api/catalogos/categorias/', general.categoria_nombre.trim(), 'categorias');
+      general = { ...general, categoria_id: created.id, categoria_nombre: created.nombre };
+    }
+
+    return { ...formData, general };
+  };
+
+  const saveEmprendimiento = async (preparedData, { publish = false, updateUrl = true } = {}) => {
+    const currentId = entityId;
+    const payload = {
+      ...preparedData,
+      estado_publicacion_codigo: publish ? 'publicado' : (preparedData.estado_publicacion_codigo || 'borrador'),
+    };
+
+    const url = currentId
+      ? `/api/admin/emprendimientos/${currentId}/edit/`
+      : '/api/admin/emprendimientos/new/';
+
+    const result = await apiRequest(url, {
+      method: currentId ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    if (result?.id && !currentId && updateUrl) {
+      setEntityId(result.id);
+      navigate(ADMIN_PATHS.emprendimientoEditar(result.id), { replace: true });
+    }
+
+    return result;
+  };
+
+  const ensureEntityForGallery = async () => {
+    if (entityId) return entityId;
+
+    const prepared = await prepareFormData();
+    const validation = validateEmprendimientoForm(prepared, {
+      publish: false,
+      imageCount: galleryCount,
+      entityId: null,
+    });
+
+    if (!validation.valid) {
+      setFormData(prepared);
+      setErrors(validation.errors);
+      setError(validation.banner || 'Complete nombre, parroquia y descripción para subir imágenes.');
+      throw new Error('validation');
+    }
+
+    setErrors({});
+    setFormData(prepared);
+    const result = await saveEmprendimiento(prepared, { publish: false });
+    const newId = result?.id || entityId;
+    if (!newId) {
+      throw new Error('No se pudo crear el registro para la galería.');
+    }
+    setEntityId(newId);
+    return newId;
+  };
+
   const upsertCatalog = async (endpoint, nombre, key) => {
     const created = await apiRequest(endpoint, { method: 'POST', body: JSON.stringify({ nombre }) });
     setCatalogs((prev) => ({
@@ -63,27 +142,50 @@ function EmprendimientoFormPage() {
   };
 
   const handleSave = async (publish) => {
-    setError('');
-    try {
-      const payload = {
-        ...formData,
-        estado_publicacion_codigo: publish ? 'publicado' : formData.estado_publicacion_codigo,
-      };
-      const url = emprendimientoId
-        ? `/api/admin/emprendimientos/${emprendimientoId}/edit/`
-        : '/api/admin/emprendimientos/new/';
-      const result = await apiRequest(url, {
-        method: emprendimientoId ? 'PUT' : 'POST',
-        body: JSON.stringify(payload),
-      });
-      if (!emprendimientoId && result?.id) {
-        navigate(ADMIN_PATHS.emprendimientoEditar(result.id));
+    await withLock(async () => {
+      setError('');
+
+      let prepared;
+      try {
+        prepared = await prepareFormData();
+      } catch (err) {
+        setError(err.message || 'Error al preparar el formulario.');
         return;
       }
-      navigate(ADMIN_PATHS.emprendimientos);
-    } catch (err) {
-      setError(err.message);
-    }
+
+      const validation = validateEmprendimientoForm(prepared, {
+        publish,
+        imageCount: galleryCount,
+        entityId,
+      });
+      if (!validation.valid) {
+        setFormData(prepared);
+        setErrors(validation.errors);
+        setError(validation.banner || validation.message);
+        return;
+      }
+      setErrors({});
+      setFormData(prepared);
+
+      try {
+        const wasNew = !entityId;
+        await saveEmprendimiento(prepared, { publish, updateUrl: wasNew });
+        if (publish) {
+          toast.success('Emprendimiento publicado correctamente.');
+          navigate(ADMIN_PATHS.emprendimientos);
+          return;
+        }
+        if (wasNew) {
+          toast.success('Emprendimiento guardado. Ya puede subir imágenes en la galería.');
+          return;
+        }
+        toast.success('Emprendimiento guardado correctamente.');
+        navigate(ADMIN_PATHS.emprendimientos);
+      } catch (err) {
+        if (err.fieldErrors) setErrors(err.fieldErrors);
+        setError(err.message || 'Error al guardar el emprendimiento.');
+      }
+    });
   };
 
   if (loading) {
@@ -93,7 +195,7 @@ function EmprendimientoFormPage() {
   return (
     <div className="atractivo-form-page">
       <div className="form-header">
-        <h1>{emprendimientoId ? `Editar: ${formData.general.nombre}` : 'Nuevo emprendimiento'}</h1>
+        <h1>{entityId ? `Editar: ${formData.general.nombre}` : 'Nuevo emprendimiento'}</h1>
         <select
           value={formData.estado_publicacion_codigo}
           onChange={(e) => setFormData((prev) => ({ ...prev, estado_publicacion_codigo: e.target.value }))}
@@ -104,7 +206,7 @@ function EmprendimientoFormPage() {
         </select>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <FormValidationBanner message={error} errors={errors} />}
 
       <div className="tabs-content" style={{ background: '#fff', padding: 24, borderRadius: 8 }}>
         <h2>Datos generales</h2>
@@ -112,16 +214,20 @@ function EmprendimientoFormPage() {
           <div className="form-group">
             <label>Nombre *</label>
             <input
+              type="text"
               value={formData.general.nombre}
+              className={fieldClass(errors['general.nombre'])}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
                 general: { ...prev.general, nombre: e.target.value },
               }))}
             />
+            <FieldError error={errors['general.nombre']} />
           </div>
           <CreatableCombobox
             label="Parroquia *"
             options={catalogs.parroquias}
+            error={errors['general.parroquia_id']}
             value={formData.general.parroquia_id ? {
               id: formData.general.parroquia_id,
               nombre: catalogs.parroquias.find((p) => p.id === formData.general.parroquia_id)?.nombre || '',
@@ -155,27 +261,51 @@ function EmprendimientoFormPage() {
           />
           <div className="form-group">
             <label>Teléfono</label>
-            <input value={formData.general.telefono || ''} onChange={(e) => setFormData((prev) => ({
-              ...prev, general: { ...prev.general, telefono: e.target.value },
-            }))} />
+            <input
+              type="tel"
+              value={formData.general.telefono || ''}
+              className={fieldClass(errors['general.telefono'])}
+              onChange={(e) => setFormData((prev) => ({
+              ...prev, general: { ...prev.general, telefono: filterDigitsOnly(e.target.value) },
+            }))}
+            />
+            <FieldError error={errors['general.telefono']} />
           </div>
           <div className="form-group">
             <label>Email</label>
-            <input type="email" value={formData.general.email || ''} onChange={(e) => setFormData((prev) => ({
+            <input
+              type="email"
+              value={formData.general.email || ''}
+              className={fieldClass(errors['general.email'])}
+              onChange={(e) => setFormData((prev) => ({
               ...prev, general: { ...prev.general, email: e.target.value },
-            }))} />
+            }))}
+            />
+            <FieldError error={errors['general.email']} />
           </div>
           <div className="form-group form-full">
-            <label>Descripción</label>
-            <textarea rows="4" value={formData.general.descripcion || ''} onChange={(e) => setFormData((prev) => ({
+            <label>Descripción *</label>
+            <textarea
+              rows="4"
+              value={formData.general.descripcion || ''}
+              className={fieldClass(errors['general.descripcion'])}
+              onChange={(e) => setFormData((prev) => ({
               ...prev, general: { ...prev.general, descripcion: e.target.value },
-            }))} />
+            }))}
+            />
+            <FieldError error={errors['general.descripcion']} />
           </div>
           <div className="form-group form-full">
             <label>Dirección</label>
-            <input value={formData.general.direccion || ''} onChange={(e) => setFormData((prev) => ({
+            <input
+              type="text"
+              value={formData.general.direccion || ''}
+              className={fieldClass(errors['general.direccion'])}
+              onChange={(e) => setFormData((prev) => ({
               ...prev, general: { ...prev.general, direccion: e.target.value },
-            }))} />
+            }))}
+            />
+            <FieldError error={errors['general.direccion']} />
           </div>
         </div>
 
@@ -184,26 +314,30 @@ function EmprendimientoFormPage() {
           <div className="form-group">
             <label>Latitud</label>
             <input
-              type="number"
-              step="0.000001"
+              type="text"
+              inputMode="decimal"
               value={formData.ubicacion.latitud ?? ''}
+              className={fieldClass(errors['ubicacion.latitud'])}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
-                ubicacion: { ...prev.ubicacion, latitud: e.target.value ? Number(e.target.value) : null },
+                ubicacion: { ...prev.ubicacion, latitud: filterSignedDecimalInput(e.target.value) || null },
               }))}
             />
+            <FieldError error={errors['ubicacion.latitud']} />
           </div>
           <div className="form-group">
             <label>Longitud</label>
             <input
-              type="number"
-              step="0.000001"
+              type="text"
+              inputMode="decimal"
               value={formData.ubicacion.longitud ?? ''}
+              className={fieldClass(errors['ubicacion.longitud'])}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
-                ubicacion: { ...prev.ubicacion, longitud: e.target.value ? Number(e.target.value) : null },
+                ubicacion: { ...prev.ubicacion, longitud: filterSignedDecimalInput(e.target.value) || null },
               }))}
             />
+            <FieldError error={errors['ubicacion.longitud']} />
           </div>
         </div>
         <LocationMapPicker
@@ -235,13 +369,25 @@ function EmprendimientoFormPage() {
         </div>
 
         <h2 style={{ marginTop: 24 }}>Galería</h2>
-        <GalleryUploader entidadTipo="emprendimiento" entidadId={emprendimientoId} />
+        <GalleryUploader
+          entidadTipo="emprendimiento"
+          entidadId={entityId}
+          onEnsureEntity={ensureEntityForGallery}
+          onCountChange={setGalleryCount}
+          externalError={errors.galeria}
+        />
       </div>
 
       <div className="form-footer">
-        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.emprendimientos)}>Cancelar</button>
-        <button type="button" className="btn-secondary" onClick={() => handleSave(false)}>Guardar</button>
-        <button type="button" className="btn-primary" onClick={() => handleSave(true)}>Guardar y publicar</button>
+        <button type="button" className="btn-secondary" onClick={() => navigate(ADMIN_PATHS.emprendimientos)} disabled={isSubmitting}>
+          Cancelar
+        </button>
+        <button type="button" className="btn-primary" onClick={() => handleSave(false)} disabled={isSubmitting}>
+          {isSubmitting ? 'Guardando…' : 'Guardar Borrador'}
+        </button>
+        <button type="button" className="btn-success" onClick={() => handleSave(true)} disabled={isSubmitting}>
+          {isSubmitting ? 'Publicando…' : 'Guardar y Publicar'}
+        </button>
       </div>
     </div>
   );

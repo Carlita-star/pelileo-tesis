@@ -5,16 +5,23 @@ import LocationMapPicker from '../components/LocationMapPicker';
 import GalleryUploader from '../components/GalleryUploader';
 import { apiRequest } from '../services/apiClient';
 import { ADMIN_PATHS } from '../routes/adminPaths';
+import { validateAtractivoForm, getAtractivoErrorTab } from '../utils/adminFormSchemas';
+import FormValidationBanner, { FieldError, fieldClass } from '../components/FormValidationBanner';
+import { parseCoordinate } from '../utils/formValidation';
+import { useToast } from '../context/ToastContext';
+import { useSubmitLock } from '../hooks/useSubmitLock';
 import '../styles/AtractivoForm.css';
 
 const AtractivoFormPage = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { id } = useParams();
   const atractivo_id = id ? Number(id) : null;
+  const [entityId, setEntityId] = useState(atractivo_id);
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(atractivo_id ? true : false);
   const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { isSubmitting, withLock } = useSubmitLock();
   
   // Catálogos
   const [catalogs, setCatalogs] = useState({
@@ -38,6 +45,7 @@ const AtractivoFormPage = () => {
       direccion: '',
       horario: '',
       precio_referencial: null,
+      destacado: false,
     },
     ubicacion: {
       latitud: null,
@@ -89,6 +97,11 @@ const AtractivoFormPage = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [galleryCount, setGalleryCount] = useState(0);
+
+  useEffect(() => {
+    setEntityId(atractivo_id);
+  }, [atractivo_id]);
 
   useEffect(() => {
     fetchInitialData();
@@ -229,64 +242,125 @@ const AtractivoFormPage = () => {
     handleInputChange('general', 'slug', nombre);
   };
 
-  const handleSubmit = async (action) => {
-    setError(null);
-    setIsSubmitting(true);
+  const prepareFormData = async () => {
+    let general = { ...formData.general };
 
+    if (!general.categoria_id && general.categoria_nombre?.trim()) {
+      const created = await createCategoria(general.categoria_nombre.trim());
+      general = { ...general, categoria_id: created.id, categoria_nombre: created.nombre };
+    }
+
+    if (!general.parroquia_id && general.parroquia_nombre?.trim()) {
+      const created = await createParroquia(general.parroquia_nombre.trim());
+      general = { ...general, parroquia_id: created.id, parroquia_nombre: created.nombre };
+    }
+
+    return { ...formData, general };
+  };
+
+  const saveAtractivo = async (preparedFormData, action, { updateUrl = true } = {}) => {
+    const currentId = entityId;
+    const finalData = {
+      ...preparedFormData,
+      estado_publicacion_codigo: action === 'publish' ? 'publicado' : 'borrador',
+    };
+
+    const url = currentId
+      ? `/api/admin/atractivos/${currentId}/edit/`
+      : '/api/admin/atractivos/new/';
+
+    const result = await apiRequest(url, {
+      method: currentId ? 'PUT' : 'POST',
+      body: JSON.stringify(finalData),
+    });
+
+    if (result?.id && !currentId && updateUrl) {
+      setEntityId(result.id);
+      navigate(ADMIN_PATHS.atractivoEditar(result.id), { replace: true });
+    }
+
+    return result;
+  };
+
+  const ensureEntityForGallery = async () => {
+    if (entityId) return entityId;
+
+    let preparedFormData;
     try {
-      let general = { ...formData.general };
+      preparedFormData = await prepareFormData();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
 
-      if (!general.categoria_id && general.categoria_nombre?.trim()) {
-        const created = await createCategoria(general.categoria_nombre.trim());
-        general = { ...general, categoria_id: created.id, categoria_nombre: created.nombre };
-      }
+    const validation = validateAtractivoForm(preparedFormData, {
+      publish: false,
+      imageCount: galleryCount,
+      entityId: null,
+    });
 
-      if (!general.parroquia_id && general.parroquia_nombre?.trim()) {
-        const created = await createParroquia(general.parroquia_nombre.trim());
-        general = { ...general, parroquia_id: created.id, parroquia_nombre: created.nombre };
-      }
-
-      const preparedFormData = { ...formData, general };
+    if (!validation.valid) {
       setFormData(preparedFormData);
+      setErrors(validation.errors);
+      setError(validation.banner || 'Complete nombre, categoría, parroquia y descripción para subir imágenes.');
+      setActiveTab(getAtractivoErrorTab(validation.errors));
+      throw new Error('validation');
+    }
 
-      const newErrors = {};
-      if (!preparedFormData.general.nombre) newErrors['general.nombre'] = 'El nombre es requerido';
-      if (!preparedFormData.general.categoria_id) newErrors['general.categoria_id'] = 'La categoría es requerida';
-      if (!preparedFormData.general.parroquia_id) newErrors['general.parroquia_id'] = 'La parroquia es requerida';
-      if (!preparedFormData.general.descripcion) newErrors['general.descripcion'] = 'La descripción es requerida';
-      if (!preparedFormData.general.slug) newErrors['general.slug'] = 'El slug es requerido';
+    setErrors({});
+    setFormData(preparedFormData);
+    const result = await saveAtractivo(preparedFormData, 'draft');
+    const newId = result?.id || entityId;
+    if (!newId) {
+      throw new Error('No se pudo crear el registro para la galería.');
+    }
+    setEntityId(newId);
+    return newId;
+  };
 
-      if (Object.keys(newErrors).length > 0) {
-        setErrors(newErrors);
-        setError('Por favor completa los campos requeridos');
+  const handleSubmit = async (action) => {
+    await withLock(async () => {
+      setError(null);
+
+      let preparedFormData;
+      try {
+        preparedFormData = await prepareFormData();
+      } catch (err) {
+        setError(err.message);
         return;
       }
 
-      const finalData = {
-        ...preparedFormData,
-        estado_publicacion_codigo: action === 'publish' ? 'publicado' : 'borrador',
-      };
+      const isPublish = action === 'publish';
 
-      const url = atractivo_id
-        ? `/api/admin/atractivos/${atractivo_id}/edit/`
-        : '/api/admin/atractivos/new/';
-
-      const result = await apiRequest(url, {
-        method: atractivo_id ? 'PUT' : 'POST',
-        body: JSON.stringify(finalData),
+      const validation = validateAtractivoForm(preparedFormData, {
+        publish: isPublish,
+        imageCount: galleryCount,
+        entityId: entityId,
       });
 
-      alert(`Atractivo ${action === 'publish' ? 'publicado' : 'guardado'} exitosamente`);
-      if (!atractivo_id && result?.id) {
-        navigate(ADMIN_PATHS.atractivoEditar(result.id));
+      if (!validation.valid) {
+        setFormData(preparedFormData);
+        setErrors(validation.errors);
+        setError(validation.banner || validation.message);
+        setActiveTab(getAtractivoErrorTab(validation.errors));
         return;
       }
-      navigate(ADMIN_PATHS.atractivos);
-    } catch (err) {
-      setError(`Error: ${err.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+
+      setErrors({});
+
+      try {
+        const wasNew = !entityId;
+        setFormData(preparedFormData);
+        await saveAtractivo(preparedFormData, action, { updateUrl: wasNew });
+
+        toast.success(`Atractivo ${action === 'publish' ? 'publicado' : 'guardado'} exitosamente`);
+        if (wasNew) return;
+        navigate(ADMIN_PATHS.atractivos);
+      } catch (err) {
+        if (err.fieldErrors) setErrors(err.fieldErrors);
+        setError(`Error: ${err.message}`);
+      }
+    });
   };
 
   if (loading) {
@@ -296,7 +370,7 @@ const AtractivoFormPage = () => {
   return (
     <div className="atractivo-form-page">
       <div className="form-header">
-        <h1>{atractivo_id ? `Editar: ${formData.general.nombre}` : 'Nuevo Atractivo'}</h1>
+        <h1>{entityId ? `Editar: ${formData.general.nombre}` : 'Nuevo Atractivo'}</h1>
         <select 
           value={formData.estado_publicacion_codigo}
           onChange={(e) => handleInputChange('', 'estado_publicacion_codigo', e.target.value)}
@@ -308,20 +382,28 @@ const AtractivoFormPage = () => {
         </select>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <FormValidationBanner message={error} errors={errors} />}
 
       <div className="tabs-container">
         <div className="tabs-header">
           {['Datos Generales', 'Ubicación', 'Características', 'Accesibilidad', 
-            'Conservación', 'Administración', 'Servicios', 'Galería'].map((tab, idx) => (
+            'Conservación', 'Administración', 'Servicios', 'Galería'].map((tab, idx) => {
+            const tabPrefixes = { 0: 'general.', 1: 'ubicacion.', 5: 'administracion.', 7: 'galeria' };
+            const prefix = tabPrefixes[idx];
+            const hasTabError = prefix
+              ? Object.keys(errors).some((k) => k === 'galeria' ? prefix === 'galeria' : k.startsWith(prefix))
+              : false;
+            return (
             <button
               key={idx}
-              className={`tab-button ${activeTab === idx ? 'active' : ''}`}
+              type="button"
+              className={`tab-button ${activeTab === idx ? 'active' : ''} ${hasTabError ? 'tab-has-error' : ''}`}
               onClick={() => setActiveTab(idx)}
             >
               {tab}
+              {hasTabError && <span className="tab-error-dot">!</span>}
             </button>
-          ))}
+          );})}
         </div>
 
         <div className="tabs-content">
@@ -436,6 +518,20 @@ const AtractivoFormPage = () => {
                     onChange={(e) => handleInputChange('general', 'precio_referencial', e.target.value ? parseFloat(e.target.value) : null)}
                   />
                 </div>
+
+                <div className="form-group form-full">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.general.destacado)}
+                      onChange={(e) => handleCheckboxChange('general', 'destacado', e.target.checked)}
+                    />
+                    Mostrar como destacado en el inicio
+                  </label>
+                  <p className="section-note" style={{ marginTop: 6 }}>
+                    Si está activo, este atractivo puede aparecer en la sección “Destinos destacados” del portal.
+                  </p>
+                </div>
               </form>
             </div>
           )}
@@ -446,23 +542,27 @@ const AtractivoFormPage = () => {
               <h2>Ubicación GPS</h2>
               <form className="form-grid">
                 <div className="form-group">
-                  <label>Latitud</label>
+                  <label>Latitud {formData.estado_publicacion_codigo === 'publicado' && '*'}</label>
                   <input
                     type="number"
                     step="0.000001"
+                    className={fieldClass(errors['ubicacion.latitud'])}
                     value={formData.ubicacion.latitud || ''}
-                    onChange={(e) => handleInputChange('ubicacion', 'latitud', e.target.value ? parseFloat(e.target.value) : null)}
+                    onChange={(e) => handleInputChange('ubicacion', 'latitud', parseCoordinate(e.target.value))}
                   />
+                  <FieldError error={errors['ubicacion.latitud']} />
                 </div>
 
                 <div className="form-group">
-                  <label>Longitud</label>
+                  <label>Longitud {formData.estado_publicacion_codigo === 'publicado' && '*'}</label>
                   <input
                     type="number"
                     step="0.000001"
+                    className={fieldClass(errors['ubicacion.longitud'])}
                     value={formData.ubicacion.longitud || ''}
-                    onChange={(e) => handleInputChange('ubicacion', 'longitud', e.target.value ? parseFloat(e.target.value) : null)}
+                    onChange={(e) => handleInputChange('ubicacion', 'longitud', parseCoordinate(e.target.value))}
                   />
+                  <FieldError error={errors['ubicacion.longitud']} />
                 </div>
 
                 <div className="form-group">
@@ -877,7 +977,13 @@ const AtractivoFormPage = () => {
           {activeTab === 7 && (
             <div className="tab-pane">
               <h2>Galería de Imágenes</h2>
-              <GalleryUploader entidadTipo="atractivo" entidadId={atractivo_id} />
+              <GalleryUploader
+                entidadTipo="atractivo"
+                entidadId={entityId}
+                onEnsureEntity={ensureEntityForGallery}
+                onCountChange={setGalleryCount}
+                externalError={errors.galeria}
+              />
             </div>
           )}
         </div>

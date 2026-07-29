@@ -10,7 +10,7 @@ function ProtectedRoute({ children }) {
   }
 
   if (!hasPanelAccess()) {
-    return <Navigate to={ADMIN_PATHS.login} replace state={{ reason: 'no-role' }} />;
+    return <Navigate to="/" replace state={{ reason: 'no-panel-access' }} />;
   }
 
   return children;

@@ -10,10 +10,19 @@ import RutaFormPage from '../pages/admin/RutaFormPage';
 import EmprendimientosAdminPage from '../pages/admin/EmprendimientosAdminPage';
 import EmprendimientoFormPage from '../pages/admin/EmprendimientoFormPage';
 import EventosPage from '../pages/EventosPage';
+import EventoFormPage from '../pages/admin/EventoFormPage';
+import CatalogosPage from '../pages/admin/CatalogosPage';
+import UsuarioFormPage from '../pages/admin/UsuarioFormPage';
 import UsuariosPage from '../pages/UsuariosPage';
 import ReportesPage from '../pages/ReportesPage';
 import AuditoriasPage from '../pages/AuditoriasPage';
 import ConfiguracionPage from '../pages/ConfiguracionPage';
+import SinPermisoPage from '../pages/admin/SinPermisoPage';
+import PerfilPage from '../pages/admin/PerfilPage';
+import AdminOnlyRoute from './AdminOnlyRoute';
+import ErroresMonitorPage from '../pages/admin/ErroresMonitorPage';
+import ResenasMonitorPage from '../pages/admin/ResenasMonitorPage';
+import PapeleraPage from '../pages/admin/PapeleraPage';
 
 function AdminRoutes() {
   return (
@@ -40,11 +49,23 @@ function AdminRoutes() {
         <Route path="emprendimientos/nuevo" element={<EmprendimientoFormPage />} />
         <Route path="emprendimientos/:id/editar" element={<EmprendimientoFormPage />} />
         <Route path="eventos" element={<EventosPage />} />
-        <Route path="usuarios" element={<UsuariosPage />} />
-        <Route path="reportes" element={<ReportesPage />} />
-        <Route path="auditoria" element={<AuditoriasPage />} />
+        <Route path="eventos/nuevo" element={<EventoFormPage />} />
+        <Route path="eventos/:id/editar" element={<EventoFormPage />} />
+        <Route path="catalogos" element={<CatalogosPage />} />
         <Route path="configuracion" element={<ConfiguracionPage />} />
-        <Route path="catalogos" element={<Navigate to="../atractivos" replace />} />
+        <Route path="perfil" element={<PerfilPage />} />
+        <Route path="resenas" element={<ResenasMonitorPage />} />
+        <Route path="papelera" element={<PapeleraPage />} />
+        <Route path="sin-permiso" element={<SinPermisoPage />} />
+
+        <Route element={<AdminOnlyRoute />}>
+          <Route path="usuarios" element={<UsuariosPage />} />
+          <Route path="usuarios/nuevo" element={<UsuarioFormPage />} />
+          <Route path="usuarios/:id/editar" element={<UsuarioFormPage />} />
+          <Route path="reportes" element={<ReportesPage />} />
+          <Route path="auditoria" element={<AuditoriasPage />} />
+          <Route path="errores" element={<ErroresMonitorPage />} />
+        </Route>
       </Route>
     </Routes>
   );

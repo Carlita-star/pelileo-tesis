@@ -15,6 +15,12 @@ L.Icon.Default.mergeOptions({
 const DEFAULT_CENTER = [-1.3167, -78.6167];
 const DEFAULT_ZOOM = 13;
 
+function toCoord(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 function LocationMapPicker({ latitud, longitud, onChange, height = 320 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -25,28 +31,30 @@ function LocationMapPicker({ latitud, longitud, onChange, height = 320 }) {
       return undefined;
     }
 
-    const initialLat = latitud ?? DEFAULT_CENTER[0];
-    const initialLng = longitud ?? DEFAULT_CENTER[1];
+    const initialLat = toCoord(latitud) ?? DEFAULT_CENTER[0];
+    const initialLng = toCoord(longitud) ?? DEFAULT_CENTER[1];
 
     const map = L.map(mapRef.current).setView([initialLat, initialLng], DEFAULT_ZOOM);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap',
     }).addTo(map);
 
-    if (latitud != null && longitud != null) {
-      markerRef.current = L.marker([latitud, longitud]).addTo(map);
+    const lat = toCoord(latitud);
+    const lng = toCoord(longitud);
+    if (lat != null && lng != null) {
+      markerRef.current = L.marker([lat, lng]).addTo(map);
     }
 
     map.on('click', (event) => {
-      const { lat, lng } = event.latlng;
+      const { lat: clickLat, lng: clickLng } = event.latlng;
       if (markerRef.current) {
-        markerRef.current.setLatLng([lat, lng]);
+        markerRef.current.setLatLng([clickLat, clickLng]);
       } else {
-        markerRef.current = L.marker([lat, lng]).addTo(map);
+        markerRef.current = L.marker([clickLat, clickLng]).addTo(map);
       }
       onChange({
-        latitud: Number(lat.toFixed(6)),
-        longitud: Number(lng.toFixed(6)),
+        latitud: Number(clickLat.toFixed(6)),
+        longitud: Number(clickLng.toFixed(6)),
       });
     });
 
@@ -60,16 +68,18 @@ function LocationMapPicker({ latitud, longitud, onChange, height = 320 }) {
   }, []);
 
   useEffect(() => {
-    if (!mapInstanceRef.current || latitud == null || longitud == null) {
+    const lat = toCoord(latitud);
+    const lng = toCoord(longitud);
+    if (!mapInstanceRef.current || lat == null || lng == null) {
       return;
     }
     const map = mapInstanceRef.current;
     if (markerRef.current) {
-      markerRef.current.setLatLng([latitud, longitud]);
+      markerRef.current.setLatLng([lat, lng]);
     } else {
-      markerRef.current = L.marker([latitud, longitud]).addTo(map);
+      markerRef.current = L.marker([lat, lng]).addTo(map);
     }
-    map.setView([latitud, longitud], map.getZoom());
+    map.setView([lat, lng], map.getZoom() || DEFAULT_ZOOM);
   }, [latitud, longitud]);
 
   return (

@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../services/apiClient';
 import { ADMIN_PATHS } from '../../routes/adminPaths';
+import AdminDetailModal from '../../components/admin/AdminDetailModal';
+import DownloadFichaButton from '../../components/admin/DownloadFichaButton';
+import { useAdminDetail } from '../../hooks/useAdminDetail';
+import { useErrorToast } from '../../hooks/useErrorToast';
+import { useListSearch } from '../../hooks/useListSearch';
+import { urlImagen } from '../../services/media';
 
 const ESTADO_COLOR = {
   borrador: 'status-draft',
@@ -11,15 +17,17 @@ const ESTADO_COLOR = {
 
 function EmprendimientosAdminPage() {
   const navigate = useNavigate();
+  const detail = useAdminDetail();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [items, setItems] = useState([]);
   const [parroquias, setParroquias] = useState([]);
   const [estados, setEstados] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useListSearch();
   const [parroquiaId, setParroquiaId] = useState('');
   const [estado, setEstado] = useState('todos');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -31,7 +39,7 @@ function EmprendimientosAdminPage() {
     if (parroquiaId) params.set('parroquia_id', parroquiaId);
     if (estado) params.set('estado', estado);
     params.set('page', String(page));
-    params.set('page_size', '10');
+    params.set('page_size', String(pageSize));
 
     try {
       const data = await apiRequest(`/api/admin/emprendimientos/?${params.toString()}`);
@@ -49,15 +57,24 @@ function EmprendimientosAdminPage() {
 
   useEffect(() => {
     fetchData();
-  }, [search, parroquiaId, estado, page]);
+  }, [search, parroquiaId, estado, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useErrorToast(error, { action: { label: 'Reintentar', onClick: fetchData } });
 
   const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este emprendimiento?')) return;
+    if (!window.confirm('¿Enviar este emprendimiento a la papelera? Podrá restaurarlo después desde el dashboard.')) return;
     try {
+      setLoading(true);
       await apiRequest(`/api/admin/emprendimientos/${id}/`, { method: 'DELETE' });
-      fetchData();
+      await fetchData();
     } catch (err) {
       setError('Error al eliminar.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -102,6 +119,7 @@ function EmprendimientosAdminPage() {
         <table className="entity-table">
           <thead>
             <tr>
+              <th>Imagen</th>
               <th>Nombre</th>
               <th>Parroquia</th>
               <th>Teléfono</th>
@@ -111,12 +129,19 @@ function EmprendimientosAdminPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="5"><div className="loader" /> Cargando...</td></tr>
+              <tr><td colSpan="6"><div className="loader" /> Cargando...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan="5"><p className="empty-state">No hay emprendimientos.</p></td></tr>
+              <tr><td colSpan="6"><p className="empty-state">No hay emprendimientos.</p></td></tr>
             ) : (
               items.map((item) => (
                 <tr key={item.id}>
+                  <td>
+                    {item.imagen ? (
+                      <img className="thumbnail" src={urlImagen(item.imagen)} alt={item.nombre} />
+                    ) : (
+                      <div className="thumbnail placeholder">No imagen</div>
+                    )}
+                  </td>
                   <td>{item.nombre}</td>
                   <td>{item.parroquia || '---'}</td>
                   <td>{item.telefono || '---'}</td>
@@ -126,9 +151,13 @@ function EmprendimientosAdminPage() {
                     </span>
                   </td>
                   <td className="actions-cell">
-                    <button type="button" onClick={() => navigate(ADMIN_PATHS.emprendimientoEditar(item.id))}>✏️</button>
-                    <button type="button" onClick={() => handleToggleEstado(item)}>👁️</button>
-                    <button type="button" onClick={() => handleDelete(item.id)}>🗑️</button>
+                    <div className="actions-cell-group">
+                    <button type="button" className="action-btn action-btn--view" onClick={() => detail.openDetail('emprendimiento', item.id)} title="Ver detalle">Ver</button>
+                    <DownloadFichaButton type="emprendimiento" id={item.id} compact />
+                    <button type="button" className="action-btn" onClick={() => navigate(ADMIN_PATHS.emprendimientoEditar(item.id))} title="Editar">✏️</button>
+                    <button type="button" className="action-btn" onClick={() => handleToggleEstado(item)} title="Cambiar estado">🔁</button>
+                    <button type="button" className="action-btn" onClick={() => handleDelete(item.id)} title="Enviar a papelera">🗑️</button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -143,9 +172,31 @@ function EmprendimientosAdminPage() {
           <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
           <span>Página {page} de {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</button>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
+            {[10, 20, 50].map((size) => (
+              <option key={size} value={size}>
+                {size} / página
+              </option>
+            ))}
+          </select>
         </div>
       </div>
-      {error && <p className="status-error">{error}</p>}
+
+      <AdminDetailModal
+        isOpen={detail.isOpen}
+        type={detail.type}
+        id={detail.id}
+        data={detail.data}
+        images={detail.images}
+        loading={detail.loading}
+        error={detail.error}
+        imageError={detail.imageError}
+        onClose={detail.close}
+        onEdit={detail.id ? () => {
+          detail.close();
+          navigate(ADMIN_PATHS.emprendimientoEditar(detail.id));
+        } : undefined}
+      />
     </section>
   );
 }

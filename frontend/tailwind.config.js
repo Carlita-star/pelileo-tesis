@@ -10,10 +10,15 @@ module.exports = {
       colors: {
         primario:           'var(--color-primario, #1D9E75)',
         'primario-oscuro':  'var(--color-primario-oscuro, #157A5A)',
-        secundario:         'var(--color-secundario, #F59E0B)',
+        secundario:         'var(--color-secundario, #F9A825)',
+        terciario:          'var(--color-terciario, #2563EB)',
+      },
+      borderRadius: {
+        portal: 'var(--borde-radio, 10px)',
       },
       fontFamily: {
-        sans: ['var(--font-portal, "Inter")', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-portal, "Manrope")', 'system-ui', 'sans-serif'],
+        display: ['Outfit', 'Manrope', 'system-ui', 'sans-serif'],
       },
     },
   },

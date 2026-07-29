@@ -29,8 +29,8 @@ class Command(BaseCommand):
                 continue
             UsuarioRol.objects.get_or_create(
                 usuario=usuario,
-                rol=created_roles['gestor_turistico'],
+                rol=created_roles['visitante'],
             )
-            self.stdout.write(f'Asignado gestor_turistico a {usuario.username}')
+            self.stdout.write(f'Asignado visitante a {usuario.username}')
 
         self.stdout.write(self.style.SUCCESS('Roles inicializados correctamente.'))

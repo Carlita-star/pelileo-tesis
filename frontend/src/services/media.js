@@ -1,12 +1,26 @@
 import { API_BASE } from './api';
 
-// Convierte el campo "archivo" de multimedia en una URL que el navegador
-// pueda mostrar. Si ya es URL completa, la deja igual; si es ruta relativa,
-// la sirve desde el backend (carpeta media de Django).
-export function urlImagen(archivo) {
-  if (!archivo || typeof archivo !== 'string') return null;
-  if (archivo.startsWith('http')) return archivo;
+// Normaliza rutas relativas, URLs sin esquema (api.dominio.com/media/...)
+// y URLs completas para que el navegador pueda cargarlas.
+export function normalizeMediaUrl(value) {
+  if (!value || typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+    return trimmed;
+  }
+
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(trimmed)) {
+    return `https://${trimmed.replace(/^\/+/, '')}`;
+  }
+
   const base = API_BASE.replace(/\/$/, '');
-  const ruta = archivo.startsWith('/') ? archivo : `/media/${archivo}`;
+  const ruta = trimmed.startsWith('/') ? trimmed : `/media/${trimmed}`;
   return `${base}${ruta}`;
+}
+
+export function urlImagen(archivo) {
+  return normalizeMediaUrl(archivo);
 }

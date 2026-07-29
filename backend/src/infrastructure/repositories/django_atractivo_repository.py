@@ -16,6 +16,7 @@ from src.domain.catalogos.servicios import Servicio
 from src.domain.catalogos.actividades import Actividad
 from src.domain.multimedia.models import Multimedia
 from src.domain.auditorias.models import Auditoria
+from src.domain.shared.media_urls import build_media_url
 
 
 
@@ -27,7 +28,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         parroquia_id: Optional[int] = None,
         estado_codigo: Optional[str] = None,
     ):
-        queryset = Atractivo.objects.select_related('categoria', 'parroquia', 'estado_publicacion')
+        queryset = Atractivo.objects.filter(activo=True).select_related('categoria', 'parroquia', 'estado_publicacion')
 
         if search:
             queryset = queryset.filter(nombre__icontains=search.strip())
@@ -70,7 +71,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         thumbnails: Dict[int, str] = {}
         for media in multimedia_items:
             if media.entidad_id not in thumbnails:
-                thumbnails[media.entidad_id] = media.archivo or ''
+                thumbnails[media.entidad_id] = build_media_url(media.archivo) or ''
 
         data = []
         for atractivo in items:
@@ -127,7 +128,8 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
             return False
 
         atractivo.estado_publicacion = estado
-        atractivo.save(update_fields=['estado_publicacion'])
+        atractivo.activo = True
+        atractivo.save(update_fields=['estado_publicacion', 'activo'])
         return True
 
     def obtener_para_edicion(self, atractivo_id: int) -> Optional[Dict[str, Any]]:
@@ -143,8 +145,23 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         servicios = list(atractivo.atractivo_servicios.values_list('servicio_id', flat=True))
         actividades = list(atractivo.atractivo_actividades.values_list('actividad_id', flat=True))
 
+        servicios_nombres = list(
+            Servicio.objects.filter(id__in=servicios).values('id', 'nombre')
+        ) if servicios else []
+        actividades_nombres = list(
+            Actividad.objects.filter(id__in=actividades).values('id', 'nombre')
+        ) if actividades else []
+
         return {
             'id': atractivo.id,
+            'meta': {
+                'categoria': atractivo.categoria.nombre if atractivo.categoria_id else None,
+                'parroquia': atractivo.parroquia.nombre if atractivo.parroquia_id else None,
+                'estado_publicacion': atractivo.estado_publicacion.nombre if atractivo.estado_publicacion_id else None,
+                'creado_en': atractivo.creado_en.isoformat() if atractivo.creado_en else None,
+                'actualizado_en': atractivo.actualizado_en.isoformat() if atractivo.actualizado_en else None,
+                'visitas': atractivo.visitas,
+            },
             'general': {
                 'nombre': atractivo.nombre,
                 'slug': atractivo.slug,
@@ -154,6 +171,7 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
                 'direccion': atractivo.direccion,
                 'horario': atractivo.horario,
                 'precio_referencial': float(atractivo.precio_referencial) if atractivo.precio_referencial else None,
+                'destacado': bool(atractivo.destacado),
             },
             'ubicacion': {
                 'latitud': float(atractivo.latitud) if atractivo.latitud else None,
@@ -201,6 +219,8 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
             },
             'servicios_ids': servicios,
             'actividades_ids': actividades,
+            'servicios': servicios_nombres,
+            'actividades': actividades_nombres,
             'estado_publicacion_codigo': atractivo.estado_publicacion.codigo if atractivo.estado_publicacion else 'borrador',
         }
 
@@ -277,10 +297,12 @@ class DjangoAtractivoAdminRepository(AtractivoAdminRepositoryPort):
         atractivo.direccion = data.general.direccion
         atractivo.horario = data.general.horario
         atractivo.precio_referencial = data.general.precio_referencial
+        atractivo.destacado = bool(getattr(data.general, 'destacado', False))
         atractivo.latitud = data.ubicacion.latitud
         atractivo.longitud = data.ubicacion.longitud
         atractivo.altitud = data.ubicacion.altitud
         atractivo.estado_publicacion = estado
+        atractivo.activo = True
         atractivo.actualizado_en = timezone.now()
 
         atractivo.save()
