@@ -137,15 +137,65 @@ class RedSocial(models.Model):
     url = models.TextField()
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
- 
+
     class Meta:
         db_table = 'redes_sociales'
         verbose_name = 'Red Social'
- 
+
     def __str__(self):
         return f"{self.nombre} - {self.empresa.nombre}"
- 
- 
+
+
+class Autoridad(models.Model):
+    """Autoridades del cantón (alcalde, concejales, etc.) mostradas en el portal."""
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.CASCADE, related_name='autoridades'
+    )
+    nombre = models.CharField(max_length=200)
+    cargo = models.CharField(max_length=150, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    foto = models.CharField(max_length=255, blank=True, null=True)
+    orden = models.IntegerField(default=0)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'autoridades'
+        verbose_name = 'Autoridad'
+        verbose_name_plural = 'Autoridades'
+        ordering = ['orden', 'id']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.cargo or 'sin cargo'})"
+
+
+class GuiaTuristico(models.Model):
+    """Guías de turismo del cantón (sección del inicio, según inventario oficial)."""
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.CASCADE, related_name='guias_turisticos'
+    )
+    nombre = models.CharField(max_length=200)
+    especialidad = models.CharField(max_length=200, blank=True, null=True)
+    telefono = models.CharField(max_length=50, blank=True, null=True)
+    email = models.CharField(max_length=150, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    foto = models.CharField(max_length=255, blank=True, null=True)
+    orden = models.IntegerField(default=0)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'guias_turisticos'
+        verbose_name = 'Guía turístico'
+        verbose_name_plural = 'Guías turísticos'
+        ordering = ['orden', 'id']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.especialidad or 'guía'})"
+
+
 class Configuracion(models.Model):
     empresa = models.ForeignKey(
         Empresa, on_delete=models.CASCADE, related_name='configuraciones'

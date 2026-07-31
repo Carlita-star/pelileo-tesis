@@ -39,6 +39,7 @@ export const CONFIG_DEFAULT = {
     { etiqueta: 'Rutas', ruta: '/rutas' },
     { etiqueta: 'Emprendimientos', ruta: '/emprendimientos' },
     { etiqueta: 'Eventos', ruta: '/eventos' },
+    { etiqueta: 'Galería', ruta: '/galeria' },
   ],
 
   footer: {
@@ -60,4 +61,29 @@ export const CONFIG_DEFAULT = {
   },
 
   redes: [],
+
+  sobrePelileoIntro: '',
+  sobrePelileoDatos: [
+    {
+      etiqueta: 'Cantonización',
+      valor: '22 de julio de 1860',
+      detalle: 'Fundado en 1570 · reconstruido tras 1949',
+    },
+    {
+      etiqueta: 'Sabores',
+      valor: 'Cuy, fritada, hornado y empanadas',
+      detalle: 'Tamales, caldo de gallina y chawarmishki',
+    },
+    {
+      etiqueta: 'Vive el cantón',
+      valor: 'Textiles, campo y naturaleza',
+      detalle: 'Jeans, tejidos, agricultura y geositios UNESCO',
+    },
+  ],
+  autoridades: [],
+  autoridadesIntro:
+    'Conoce a las autoridades del GAD Municipal de Pelileo que impulsan el desarrollo y el turismo del cantón.',
+  guias: [],
+  guiasIntro:
+    'Guías de turismo locales listos para acompañarte en recorridos culturales, de naturaleza y de aventura por el cantón San Pedro de Pelileo.',
 };

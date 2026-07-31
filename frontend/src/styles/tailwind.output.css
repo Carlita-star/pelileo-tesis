@@ -324,6 +324,10 @@
   z-index: 50;
 }
 
+.z-\[1\]{
+  z-index: 1;
+}
+
 .z-\[60\]{
   z-index: 60;
 }
@@ -340,10 +344,6 @@
 
 .mb-1\.5{
   margin-bottom: 0.375rem;
-}
-
-.mb-10{
-  margin-bottom: 2.5rem;
 }
 
 .mb-2{
@@ -625,8 +625,8 @@
   height: 100%;
 }
 
-.min-h-\[280px\]{
-  min-height: 280px;
+.min-h-0{
+  min-height: 0px;
 }
 
 .min-h-\[440px\]{
@@ -775,10 +775,6 @@
 
 .max-w-7xl{
   max-width: 80rem;
-}
-
-.max-w-\[1100px\]{
-  max-width: 1100px;
 }
 
 .max-w-\[1480px\]{
@@ -992,6 +988,14 @@
 
 .overflow-hidden{
   overflow: hidden;
+}
+
+.overflow-y-auto{
+  overflow-y: auto;
+}
+
+.overscroll-contain{
+  overscroll-behavior: contain;
 }
 
 .truncate{
@@ -1656,10 +1660,6 @@
   --tw-gradient-to: #fef3c7 var(--tw-gradient-to-position);
 }
 
-.to-amber-50{
-  --tw-gradient-to: #fffbeb var(--tw-gradient-to-position);
-}
-
 .to-blue-50{
   --tw-gradient-to: #eff6ff var(--tw-gradient-to-position);
 }
@@ -1770,10 +1770,6 @@
 
 .p-6{
   padding: 1.5rem;
-}
-
-.p-8{
-  padding: 2rem;
 }
 
 .px-2{
@@ -1911,16 +1907,20 @@
   padding-bottom: 1.25rem;
 }
 
-.pb-8{
-  padding-bottom: 2rem;
-}
-
 .pl-3{
   padding-left: 0.75rem;
 }
 
 .pl-4{
   padding-left: 1rem;
+}
+
+.pl-5{
+  padding-left: 1.25rem;
+}
+
+.pr-1{
+  padding-right: 0.25rem;
 }
 
 .pt-1{
@@ -1945,10 +1945,6 @@
 
 .pt-8{
   padding-top: 2rem;
-}
-
-.pl-5{
-  padding-left: 1.25rem;
 }
 
 .text-left{
@@ -2261,6 +2257,10 @@
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
+.text-white\/65{
+  color: rgb(255 255 255 / 0.65);
+}
+
 .text-white\/75{
   color: rgb(255 255 255 / 0.75);
 }
@@ -2271,10 +2271,6 @@
 
 .text-white\/90{
   color: rgb(255 255 255 / 0.9);
-}
-
-.text-white\/65{
-  color: rgb(255 255 255 / 0.65);
 }
 
 .opacity-0{
@@ -2532,6 +2528,14 @@
   transition-duration: 150ms;
 }
 
+.transition-colors{
+  transition-property: color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
 .transition-opacity{
   transition-property: opacity;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -2540,14 +2544,6 @@
 
 .transition-transform{
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.transition-colors{
-  transition-property: color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
@@ -2616,20 +2612,20 @@ html {
   height: 0.35rem;
 }
 
-.marker\:text-white\/50 *::marker{
-  color: rgb(255 255 255 / 0.5);
-}
-
 .marker\:text-slate-400 *::marker{
   color: rgb(148 163 184 );
 }
 
-.marker\:text-white\/50::marker{
+.marker\:text-white\/50 *::marker{
   color: rgb(255 255 255 / 0.5);
 }
 
 .marker\:text-slate-400::marker{
   color: rgb(148 163 184 );
+}
+
+.marker\:text-white\/50::marker{
+  color: rgb(255 255 255 / 0.5);
 }
 
 .placeholder\:text-slate-400::placeholder{
@@ -2814,10 +2810,6 @@ html {
 .hover\:no-underline:hover{
   -webkit-text-decoration-line: none;
           text-decoration-line: none;
-}
-
-.hover\:opacity-100:hover{
-  opacity: 1;
 }
 
 .hover\:opacity-90:hover{
@@ -3068,10 +3060,6 @@ html {
     gap: 2rem;
   }
 
-  .sm\:p-12{
-    padding: 3rem;
-  }
-
   .sm\:p-8{
     padding: 2rem;
   }
@@ -3107,10 +3095,6 @@ html {
 
   .sm\:pt-12{
     padding-top: 3rem;
-  }
-
-  .sm\:pt-14{
-    padding-top: 3.5rem;
   }
 
   .sm\:text-left{
@@ -3173,8 +3157,8 @@ html {
     top: 6rem;
   }
 
-  .lg\:grid-cols-2{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .lg\:max-h-\[calc\(100vh-7rem\)\]{
+    max-height: calc(100vh - 7rem);
   }
 
   .lg\:grid-cols-3{
@@ -3199,6 +3183,10 @@ html {
 
   .lg\:self-start{
     align-self: flex-start;
+  }
+
+  .lg\:overflow-hidden{
+    overflow: hidden;
   }
 
   .lg\:px-8{

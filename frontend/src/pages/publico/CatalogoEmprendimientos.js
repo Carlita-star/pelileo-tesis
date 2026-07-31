@@ -18,7 +18,7 @@ function CatalogoEmprendimientos() {
 
   useEffect(() => {
     let activo = true;
-    Promise.all([listarEmprendimientos(), obtenerCatalogosPublicos()])
+    Promise.all([listarEmprendimientos(), obtenerCatalogosPublicos({ tipo: 'emprendimiento' })])
       .then(([datos, cats]) => {
         if (!activo) return;
         setItems(datos);

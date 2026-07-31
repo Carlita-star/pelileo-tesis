@@ -7,16 +7,12 @@ import { listarEmprendimientos } from '../../services/emprendimientos.service';
 import { listarGaleriaPublica } from '../../services/galeria.service';
 import { urlImagen } from '../../services/media';
 import HeroInicio from '../../components/publico/HeroInicio';
-import GaleriaMasonry from '../../components/publico/GaleriaMasonry';
+import GaleriaInicio from '../../components/publico/GaleriaInicio';
 import TarjetaRuta from '../../components/publico/TarjetaRuta';
 import TarjetaEmprendimiento from '../../components/publico/TarjetaEmprendimiento';
-import SeccionInstitucional from '../../components/publico/SeccionInstitucional';
-
-const INFO_DEFECTO =
-  'Pelileo, conocido como el "Cantón Azul" por su tradición textil, se ubica en la provincia ' +
-  'de Tungurahua. Combina paisajes andinos, la cultura ancestral del pueblo Salasaca y la ' +
-  'calidez de su gente, ofreciendo a cada visitante una experiencia única entre naturaleza, ' +
-  'historia y tradición.';
+import SeccionSobrePelileo from '../../components/publico/SeccionSobrePelileo';
+import SeccionAutoridades from '../../components/publico/SeccionAutoridades';
+import SeccionGuiasTuristicos from '../../components/publico/SeccionGuiasTuristicos';
 
 const ESLOGAN_DEFECTO = 'Tradición, cultura, aventura y naturaleza';
 
@@ -43,77 +39,47 @@ function Home() {
 
   useEffect(() => {
     let activo = true;
-    Promise.allSettled([listarAtractivos(), listarRutas(), listarEmprendimientos(), listarGaleriaPublica()])
-      .then(([at, ru, em, gal]) => {
-        if (!activo) return;
-        setAtractivos(at.value ?? []);
-        setRutas(ru.value ?? []);
-        setEmprendimientos(em.value ?? []);
-        setGaleriaImgs(gal.value ?? []);
-      });
+    Promise.allSettled([
+      listarAtractivos(),
+      listarRutas(),
+      listarEmprendimientos(),
+      // Solo las 7 más recientes para el mosaico del inicio
+      listarGaleriaPublica({ limite: 7 }),
+    ]).then(([at, ru, em, gal]) => {
+      if (!activo) return;
+      setAtractivos(at.value ?? []);
+      setRutas(ru.value ?? []);
+      setEmprendimientos(em.value ?? []);
+      setGaleriaImgs(gal.value ?? []);
+    });
     return () => { activo = false; };
   }, []);
 
-  const poolImgs = [
-    ...atractivos.map((a) => urlImagen(a.imagen)),
-    ...emprendimientos.map((e) => urlImagen(e.imagen)),
-  ].filter(Boolean);
-
   const carruselImgs = imgsPrincipales(atractivos, rutas, emprendimientos);
-  const galeria = galeriaImgs.length ? galeriaImgs : poolImgs;
+  // Inicio: solo recientes de la API (sin fallback estático que deja fotos viejas/duplicadas)
+  const galeria = galeriaImgs;
   const imagenSobrePelileo = config?.imagenSeccionInicioUrl;
 
   const titulo = 'Descubre Pelileo';
   const eslogan = config?.eslogan && !config.eslogan.includes('GAD Municipal')
     ? config.eslogan
     : ESLOGAN_DEFECTO;
-  const infoTexto = config?.descripcion || INFO_DEFECTO;
-  const nombreInstitucional = config?.footer?.titulo || config?.nombre || 'Pelileo';
   const destacados = destacar(atractivos, 6);
 
   return (
     <div className="bg-[#f7f8f6]">
       <HeroInicio imagenes={carruselImgs} titulo={titulo} eslogan={eslogan} />
 
-      <section className="mx-auto max-w-7xl px-4 pb-8 pt-10 sm:pt-14">
-        <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/80">
-          <div className="grid lg:grid-cols-2">
-            <div className="p-8 sm:p-12">
-              <span className="inline-block rounded-full bg-primario/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primario">
-                Conoce el cantón
-              </span>
-              <h2 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-                Sobre Pelileo
-              </h2>
-              <p className="mt-4 text-base leading-relaxed text-slate-600">{infoTexto}</p>
-              <Link
-                to="/atractivos"
-                className="mt-8 inline-flex items-center rounded-full bg-primario px-7 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-primario-oscuro"
-              >
-                Explorar atractivos
-              </Link>
-            </div>
-            <div className="relative min-h-[280px] bg-gradient-to-br from-emerald-100 via-slate-100 to-amber-50">
-              {imagenSobrePelileo ? (
-                <img src={imagenSobrePelileo} alt="Pelileo" className="absolute inset-0 h-full w-full object-cover" />
-              ) : carruselImgs[0] ? (
-                <img src={carruselImgs[0]} alt="Pelileo" className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-                  <span className="text-5xl font-black text-primario/25">P</span>
-                  <span className="mt-2 text-sm">Imagen institucional próximamente</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+      <SeccionSobrePelileo
+        imagen={imagenSobrePelileo || null}
+        intro={config?.sobrePelileoIntro}
+        datos={config?.sobrePelileoDatos}
+      />
 
-      <SeccionInstitucional
-        nombre={nombreInstitucional}
-        historia={config?.historia || config?.empresa?.historia}
-        mision={config?.mision || config?.empresa?.mision}
-        vision={config?.vision || config?.empresa?.vision}
+      <SeccionAutoridades
+        autoridades={config?.autoridades || []}
+        intro={config?.autoridadesIntro}
+        fondoUrl={imagenSobrePelileo || null}
       />
 
       {destacados.length > 0 && (
@@ -228,21 +194,14 @@ function Home() {
         </section>
       )}
 
+      <SeccionGuiasTuristicos
+        guias={config?.guias || []}
+        intro={config?.guiasIntro}
+        fondoUrl={imagenSobrePelileo || null}
+      />
+
       {galeria.length > 0 && (
-        <section className="border-t border-slate-200/80 bg-white">
-          <div className="mx-auto max-w-[1100px] px-4 py-16 sm:px-6">
-            <div className="mb-10 text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-terciario">Visual</p>
-              <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-                Galería
-              </h2>
-              <p className="mx-auto mt-3 max-w-2xl text-slate-500">
-                Un recorrido por los paisajes, la cultura y la gente que hacen de Pelileo un destino inolvidable.
-              </p>
-            </div>
-            <GaleriaMasonry imagenes={galeria} />
-          </div>
-        </section>
+        <GaleriaInicio imagenes={galeria} />
       )}
     </div>
   );

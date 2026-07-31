@@ -153,6 +153,36 @@ export function mapConfiguracionApi(data) {
     logoSecundarioUrl: mediaUrl(data.logoSecundarioUrl || empresa.logo_secundario_url),
     faviconUrl: mediaUrl(data.faviconUrl || empresa.favicon_url),
     imagenSeccionInicioUrl: mediaUrl(data.imagenSeccionInicioUrl || empresa.imagen_seccion_inicio_url),
+    sobrePelileoIntro: data.sobrePelileoIntro || empresa.sobre_pelileo_intro || '',
+    sobrePelileoDatos: Array.isArray(data.sobrePelileoDatos)
+      ? data.sobrePelileoDatos
+      : (empresa.sobre_pelileo_datos || CONFIG_DEFAULT.sobrePelileoDatos),
+    autoridades: Array.isArray(data.autoridades)
+      ? data.autoridades.map((a) => ({
+          id: a.id,
+          nombre: a.nombre,
+          cargo: a.cargo || '',
+          bio: a.bio || '',
+          fotoUrl: mediaUrl(a.fotoUrl || a.foto_url),
+          orden: a.orden ?? 0,
+        }))
+      : [],
+    autoridadesIntro: data.autoridadesIntro || empresa.autoridades_intro || CONFIG_DEFAULT.autoridadesIntro,
+    autoridadesEnlace: data.autoridadesEnlace || empresa.autoridades_enlace || '',
+    guias: Array.isArray(data.guias)
+      ? data.guias.map((g) => ({
+          id: g.id,
+          nombre: g.nombre,
+          especialidad: g.especialidad || '',
+          telefono: g.telefono || '',
+          email: g.email || '',
+          bio: g.bio || '',
+          fotoUrl: mediaUrl(g.fotoUrl || g.foto_url),
+          orden: g.orden ?? 0,
+        }))
+      : [],
+    guiasIntro: data.guiasIntro || empresa.guias_intro || CONFIG_DEFAULT.guiasIntro,
+    guiasEnlace: data.guiasEnlace || empresa.guias_enlace || '',
     colores: {
       primario,
       primarioOscuro: darkenHex(primario),

@@ -25,6 +25,18 @@ class ConfiguracionAdminRepositoryPort(ABC):
         ...
 
     @abstractmethod
+    def guardar_sobre_pelileo(self, payload: dict, actor_id: int) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def guardar_autoridades(self, payload: dict, actor_id: int) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def guardar_guias(self, payload: dict, actor_id: int) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
     def guardar_header_footer(self, payload: dict, actor_id: int) -> Dict[str, Any]:
         ...
 
@@ -37,5 +49,12 @@ class ConfiguracionAdminRepositoryPort(ABC):
         ...
 
     @abstractmethod
-    def guardar_imagen(self, tipo: str, archivo, actor_id: int) -> Dict[str, Any]:
+    def guardar_imagen(
+        self,
+        tipo: str,
+        archivo,
+        actor_id: int,
+        autoridad_id: Optional[int] = None,
+        guia_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
         ...

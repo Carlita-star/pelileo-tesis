@@ -18,6 +18,7 @@ import CatalogoEventos from './pages/publico/CatalogoEventos';
 import DetalleEvento from './pages/publico/DetalleEvento';
 import MapaGeneral from './pages/publico/MapaGeneral';
 import CreditosPage from './pages/publico/CreditosPage';
+import GaleriaPage from './pages/publico/GaleriaPage';
 import NotFoundPage from './pages/publico/NotFoundPage';
 import MiCuentaPage from './pages/publico/MiCuentaPage';
 import PublicAuthRoute from './routes/PublicAuthRoute';
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="eventos" element={<CatalogoEventos />} />
             <Route path="eventos/:id" element={<DetalleEvento />} />
             <Route path="mapa" element={<MapaGeneral />} />
+            <Route path="galeria" element={<GaleriaPage />} />
             <Route path="desarrollado-por" element={<CreditosPage />} />
             <Route
               path="mi-cuenta"

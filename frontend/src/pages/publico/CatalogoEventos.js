@@ -18,7 +18,7 @@ function CatalogoEventos() {
 
   useEffect(() => {
     let activo = true;
-    Promise.all([listarEventos(), obtenerCatalogosPublicos()])
+    Promise.all([listarEventos(), obtenerCatalogosPublicos({ tipo: 'evento' })])
       .then(([datos, cats]) => {
         if (!activo) return;
         setEventos(datos);

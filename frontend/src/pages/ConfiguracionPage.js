@@ -6,10 +6,19 @@ import MenuNavegacionTab from '../components/configuracion/MenuNavegacionTab';
 import LocationMapPicker from '../components/LocationMapPicker';
 import { useToast } from '../context/ToastContext';
 import { useErrorToast } from '../hooks/useErrorToast';
+import {
+  eliminarFotoGaleria,
+  listarGaleriaAdmin,
+  subirFotoGaleria,
+} from '../services/galeria.service';
 
 const TABS = [
   { key: 'gad', label: 'Datos del GAD' },
   { key: 'identidad', label: 'Identidad visual' },
+  { key: 'sobre-pelileo', label: 'Sobre Pelileo' },
+  { key: 'autoridades', label: 'Autoridades' },
+  { key: 'guias', label: 'Guías turísticos' },
+  { key: 'galeria', label: 'Galería' },
   { key: 'apariencia', label: 'Apariencia' },
   { key: 'redes', label: 'Redes sociales' },
   { key: 'header-footer', label: 'Header y footer' },
@@ -25,6 +34,23 @@ const FUENTES = [
   'Lato, sans-serif',
   'Montserrat, sans-serif',
 ];
+
+const SOBRE_DATOS_DEFAULT = [
+  { etiqueta: 'Cantonización', valor: '22 de julio de 1860', detalle: 'Fundado en 1570 · reconstruido tras 1949' },
+  { etiqueta: 'Sabores', valor: 'Cuy, fritada, hornado y empanadas', detalle: 'Tamales, caldo de gallina y chawarmishki' },
+  { etiqueta: 'Vive el cantón', valor: 'Textiles, campo y naturaleza', detalle: 'Jeans, tejidos, agricultura y geositios UNESCO' },
+];
+
+const SOBRE_INTRO_DEFAULT =
+  'En el corazón de Tungurahua, Pelileo te recibe con la fuerza del «Cantón Azul»: '
+  + 'jeans, artesanía, paisajes andinos y la viva cultura del pueblo Salasaka. '
+  + 'Un destino listo para recorrer, saborear y fotografiar.';
+
+const AUTORIDADES_INTRO_DEFAULT =
+  'Conoce a las autoridades del GAD Municipal de Pelileo que impulsan el desarrollo y el turismo del cantón.';
+
+const GUIAS_INTRO_DEFAULT =
+  'Guías de turismo locales listos para acompañarte en recorridos culturales, de naturaleza y de aventura por el cantón San Pedro de Pelileo.';
 
 const COLORES_APARIENCIA_DEFAULT = {
   color_primario: '#1D9E75',
@@ -46,6 +72,38 @@ function emptyRed() {
   return { id: null, nombre: 'Facebook', url: '', activo: true };
 }
 
+function emptyAutoridad() {
+  return {
+    id: null,
+    nombre: '',
+    cargo: '',
+    bio: '',
+    foto: null,
+    foto_url: null,
+    orden: 0,
+    activo: true,
+  };
+}
+
+function emptyGuia() {
+  return {
+    id: null,
+    nombre: '',
+    especialidad: '',
+    telefono: '',
+    email: '',
+    bio: '',
+    foto: null,
+    foto_url: null,
+    orden: 0,
+    activo: true,
+  };
+}
+
+function emptySobreDato() {
+  return { etiqueta: '', valor: '', detalle: '' };
+}
+
 function ConfiguracionPage() {
   const toast = useToast();
   const refetchConfiguracion = useRefetchConfiguracion();
@@ -55,9 +113,18 @@ function ConfiguracionPage() {
   const [error, setError] = useState('');
 
   const [gad, setGad] = useState({});
+  const [empresaId, setEmpresaId] = useState(null);
   const [identidad, setIdentidad] = useState({});
+  const [fotosGaleria, setFotosGaleria] = useState([]);
+  const [galeriaLoading, setGaleriaLoading] = useState(false);
   const [apariencia, setApariencia] = useState({});
   const [redes, setRedes] = useState([]);
+  const [autoridades, setAutoridades] = useState([]);
+  const [autoridadesIntro, setAutoridadesIntro] = useState(AUTORIDADES_INTRO_DEFAULT);
+  const [guias, setGuias] = useState([]);
+  const [guiasIntro, setGuiasIntro] = useState(GUIAS_INTRO_DEFAULT);
+  const [sobreIntro, setSobreIntro] = useState(SOBRE_INTRO_DEFAULT);
+  const [sobreDatos, setSobreDatos] = useState(SOBRE_DATOS_DEFAULT);
   const [header, setHeader] = useState({});
   const [footer, setFooter] = useState({});
   const [menus, setMenus] = useState([]);
@@ -65,6 +132,7 @@ function ConfiguracionPage() {
 
   const aplicarDatos = useCallback((data) => {
     const emp = data.empresa || {};
+    setEmpresaId(emp.id || null);
     setGad({
       nombre: emp.nombre || '',
       nombre_comercial: emp.nombre_comercial || '',
@@ -89,6 +157,40 @@ function ConfiguracionPage() {
       favicon_url: emp.favicon_url,
       imagen_seccion_inicio_url: emp.imagen_seccion_inicio_url,
     });
+    setSobreIntro(emp.sobre_pelileo_intro || SOBRE_INTRO_DEFAULT);
+    setSobreDatos(
+      Array.isArray(emp.sobre_pelileo_datos) && emp.sobre_pelileo_datos.length
+        ? emp.sobre_pelileo_datos
+        : SOBRE_DATOS_DEFAULT
+    );
+    setAutoridades(
+      (data.autoridades || []).map((a) => ({
+        id: a.id,
+        nombre: a.nombre || '',
+        cargo: a.cargo || '',
+        bio: a.bio || '',
+        foto: a.foto || null,
+        foto_url: a.foto_url || null,
+        orden: a.orden ?? 0,
+        activo: a.activo !== false,
+      }))
+    );
+    setAutoridadesIntro(emp.autoridades_intro || AUTORIDADES_INTRO_DEFAULT);
+    setGuias(
+      (data.guias || []).map((g) => ({
+        id: g.id,
+        nombre: g.nombre || '',
+        especialidad: g.especialidad || '',
+        telefono: g.telefono || '',
+        email: g.email || '',
+        bio: g.bio || '',
+        foto: g.foto || null,
+        foto_url: g.foto_url || null,
+        orden: g.orden ?? 0,
+        activo: g.activo !== false,
+      }))
+    );
+    setGuiasIntro(emp.guias_intro || GUIAS_INTRO_DEFAULT);
     setApariencia(data.apariencia || {});
     setRedes(data.redes?.length ? data.redes : []);
     setHeader(data.header || {});
@@ -115,6 +217,24 @@ function ConfiguracionPage() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  useEffect(() => {
+    if (tabActiva !== 'galeria' || !empresaId) return undefined;
+    let activo = true;
+    setGaleriaLoading(true);
+    listarGaleriaAdmin(empresaId)
+      .then((items) => {
+        if (activo) setFotosGaleria(items);
+      })
+      .catch((err) => {
+        if (activo) toast.error(err.message || 'No se pudo cargar la galería.');
+      })
+      .finally(() => {
+        if (activo) setGaleriaLoading(false);
+      });
+    return () => { activo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabActiva, empresaId]);
+
   useErrorToast(error, { action: { label: 'Reintentar', onClick: cargar } });
 
   const guardar = async (endpoint, payload, mensaje) => {
@@ -135,10 +255,16 @@ function ConfiguracionPage() {
     }
   };
 
-  const subirImagen = async (tipo, file) => {
+  const subirImagen = async (tipo, file, extra = {}) => {
     const body = new FormData();
     body.append('tipo', tipo);
     body.append('archivo', file);
+    if (extra.autoridad_id) {
+      body.append('autoridad_id', String(extra.autoridad_id));
+    }
+    if (extra.guia_id) {
+      body.append('guia_id', String(extra.guia_id));
+    }
     const response = await fetch(`${getApiBase()}/api/admin/configuracion/imagen/`, {
       method: 'POST',
       headers: getAuthHeaders(false),
@@ -170,6 +296,90 @@ function ConfiguracionPage() {
       toast.success('Imagen cargada correctamente.');
     } catch (err) {
       toast.error(err.message || 'Error al subir la imagen.');
+    } finally {
+      setSaving(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleFotoAutoridad = async (idx, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    setError('');
+    try {
+      const actual = autoridades[idx];
+      const result = await subirImagen('autoridad_foto', file, {
+        autoridad_id: actual?.id || undefined,
+      });
+      setAutoridades((list) => list.map((a, i) => (
+        i === idx
+          ? { ...a, foto: result.path, foto_url: result.url }
+          : a
+      )));
+      toast.success('Foto de autoridad cargada. Recuerde guardar los cambios.');
+    } catch (err) {
+      toast.error(err.message || 'Error al subir la foto.');
+    } finally {
+      setSaving(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleFotoGuia = async (idx, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    setError('');
+    try {
+      const actual = guias[idx];
+      const result = await subirImagen('guia_foto', file, {
+        guia_id: actual?.id || undefined,
+      });
+      setGuias((list) => list.map((g, i) => (
+        i === idx
+          ? { ...g, foto: result.path, foto_url: result.url }
+          : g
+      )));
+      toast.success('Foto del guía cargada. Recuerde guardar los cambios.');
+    } catch (err) {
+      toast.error(err.message || 'Error al subir la foto.');
+    } finally {
+      setSaving(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleSubirGaleria = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !empresaId) return;
+    setSaving(true);
+    try {
+      for (const file of files) {
+        const item = await subirFotoGaleria(empresaId, file);
+        setFotosGaleria((prev) => [...prev, item]);
+      }
+      await refetchConfiguracion();
+      toast.success(files.length > 1 ? 'Fotografías cargadas.' : 'Fotografía cargada.');
+    } catch (err) {
+      toast.error(err.message || 'Error al subir la fotografía.');
+    } finally {
+      setSaving(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleEliminarGaleria = async (id) => {
+    if (!id) return;
+    if (!window.confirm('¿Eliminar esta fotografía de la galería?')) return;
+    setSaving(true);
+    try {
+      await eliminarFotoGaleria(id);
+      setFotosGaleria((prev) => prev.filter((f) => f.id !== id));
+      await refetchConfiguracion();
+      toast.success('Fotografía eliminada.');
+    } catch (err) {
+      toast.error(err.message || 'No se pudo eliminar.');
     } finally {
       setSaving(false);
     }
@@ -261,6 +471,393 @@ function ConfiguracionPage() {
                   <input type="file" accept="image/*" onChange={(e) => handleImagen(tipo, e)} disabled={saving} />
                 </div>
               ))}
+            </div>
+          )}
+
+          {tabActiva === 'sobre-pelileo' && (
+            <form
+              className="catalog-form config-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                guardar(
+                  'sobre-pelileo',
+                  { intro: sobreIntro, datos: sobreDatos },
+                  'Sección Sobre Pelileo guardada.'
+                );
+              }}
+            >
+              <p className="section-note">
+                Estos textos se muestran en el inicio (bloque «Conoce el cantón»).
+                La imagen se cambia en la pestaña <strong>Identidad visual</strong>.
+              </p>
+              <label>
+                Texto introductorio
+                <textarea
+                  rows={4}
+                  value={sobreIntro}
+                  onChange={(e) => setSobreIntro(e.target.value)}
+                />
+              </label>
+              <h4>Bloques informativos</h4>
+              {sobreDatos.map((dato, idx) => (
+                <div key={`sobre-${idx}`} className="config-list-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+                  <label>
+                    Etiqueta
+                    <input
+                      value={dato.etiqueta || ''}
+                      placeholder="Ej. Cantonización"
+                      onChange={(e) => setSobreDatos((list) => list.map((d, i) => (i === idx ? { ...d, etiqueta: e.target.value } : d)))}
+                    />
+                  </label>
+                  <label>
+                    Valor
+                    <input
+                      value={dato.valor || ''}
+                      placeholder="Ej. 22 de julio de 1860"
+                      onChange={(e) => setSobreDatos((list) => list.map((d, i) => (i === idx ? { ...d, valor: e.target.value } : d)))}
+                    />
+                  </label>
+                  <label>
+                    Detalle
+                    <input
+                      value={dato.detalle || ''}
+                      placeholder="Texto secundario"
+                      onChange={(e) => setSobreDatos((list) => list.map((d, i) => (i === idx ? { ...d, detalle: e.target.value } : d)))}
+                    />
+                  </label>
+                  <button type="button" onClick={() => setSobreDatos((list) => list.filter((_, i) => i !== idx))}>
+                    Eliminar bloque
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setSobreDatos((list) => [...list, emptySobreDato()])}
+              >
+                + Agregar bloque
+              </button>
+              <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
+            </form>
+          )}
+
+          {tabActiva === 'autoridades' && (
+            <form
+              className="catalog-form config-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                guardar(
+                  'autoridades',
+                  {
+                    intro: autoridadesIntro,
+                    autoridades: autoridades.map((a, idx) => ({
+                      id: a.id,
+                      nombre: a.nombre,
+                      cargo: a.cargo,
+                      bio: a.bio,
+                      foto: a.foto,
+                      orden: idx,
+                      activo: a.activo !== false,
+                    })),
+                  },
+                  'Autoridades guardadas.'
+                );
+              }}
+            >
+              <p className="section-note">
+                Se muestran en el inicio en lugar de Historia / Misión / Visión.
+                Suba la foto de cada autoridad y luego pulse <strong>Guardar cambios</strong>.
+              </p>
+              <label>
+                Texto introductorio
+                <textarea
+                  rows={3}
+                  value={autoridadesIntro}
+                  onChange={(e) => setAutoridadesIntro(e.target.value)}
+                />
+              </label>
+
+              {autoridades.map((aut, idx) => (
+                <div
+                  key={aut.id || `aut-new-${idx}`}
+                  className="config-list-item"
+                  style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.65rem' }}
+                >
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="config-imagen-preview" style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden' }}>
+                      {aut.foto_url || aut.foto ? (
+                        <img
+                          src={mediaUrl(aut.foto_url || aut.foto)}
+                          alt={aut.nombre || 'Autoridad'}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span className="empty-state">Sin foto</span>
+                      )}
+                    </div>
+                    <label style={{ flex: 1 }}>
+                      Foto
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={saving}
+                        onChange={(e) => handleFotoAutoridad(idx, e)}
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    Nombre *
+                    <input
+                      value={aut.nombre || ''}
+                      onChange={(e) => setAutoridades((list) => list.map((a, i) => (i === idx ? { ...a, nombre: e.target.value } : a)))}
+                    />
+                  </label>
+                  <label>
+                    Cargo
+                    <input
+                      value={aut.cargo || ''}
+                      placeholder="Alcalde, Concejal…"
+                      onChange={(e) => setAutoridades((list) => list.map((a, i) => (i === idx ? { ...a, cargo: e.target.value } : a)))}
+                    />
+                  </label>
+                  <label>
+                    Biografía / descripción
+                    <textarea
+                      rows={3}
+                      value={aut.bio || ''}
+                      onChange={(e) => setAutoridades((list) => list.map((a, i) => (i === idx ? { ...a, bio: e.target.value } : a)))}
+                    />
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={aut.activo !== false}
+                      onChange={(e) => setAutoridades((list) => list.map((a, i) => (i === idx ? { ...a, activo: e.target.checked } : a)))}
+                    />
+                    Visible en el portal
+                  </label>
+                  <button type="button" onClick={() => setAutoridades((list) => list.filter((_, i) => i !== idx))}>
+                    Eliminar autoridad
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setAutoridades((list) => [...list, emptyAutoridad()])}
+              >
+                + Agregar autoridad
+              </button>
+              <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
+            </form>
+          )}
+
+          {tabActiva === 'guias' && (
+            <form
+              className="catalog-form config-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                guardar(
+                  'guias',
+                  {
+                    intro: guiasIntro,
+                    guias: guias.map((g, idx) => ({
+                      id: g.id,
+                      nombre: g.nombre,
+                      especialidad: g.especialidad,
+                      telefono: g.telefono,
+                      email: g.email,
+                      bio: g.bio,
+                      foto: g.foto,
+                      orden: idx,
+                      activo: g.activo !== false,
+                    })),
+                  },
+                  'Guías turísticos guardados.'
+                );
+              }}
+            >
+              <p className="section-note">
+                Se muestran en el inicio, justo encima de la galería fotográfica (según el inventario oficial).
+                Suba la foto de cada guía y luego pulse <strong>Guardar cambios</strong>.
+              </p>
+              <label>
+                Texto introductorio
+                <textarea
+                  rows={3}
+                  value={guiasIntro}
+                  onChange={(e) => setGuiasIntro(e.target.value)}
+                />
+              </label>
+
+              {guias.map((guia, idx) => (
+                <div
+                  key={guia.id || `guia-new-${idx}`}
+                  className="config-list-item"
+                  style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.65rem' }}
+                >
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="config-imagen-preview" style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden' }}>
+                      {guia.foto_url || guia.foto ? (
+                        <img
+                          src={mediaUrl(guia.foto_url || guia.foto)}
+                          alt={guia.nombre || 'Guía'}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span className="empty-state">Sin foto</span>
+                      )}
+                    </div>
+                    <label style={{ flex: 1 }}>
+                      Foto
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={saving}
+                        onChange={(e) => handleFotoGuia(idx, e)}
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    Nombre *
+                    <input
+                      value={guia.nombre || ''}
+                      onChange={(e) => setGuias((list) => list.map((g, i) => (i === idx ? { ...g, nombre: e.target.value } : g)))}
+                    />
+                  </label>
+                  <label>
+                    Especialidad
+                    <input
+                      value={guia.especialidad || ''}
+                      placeholder="Guía Nacional de Turismo…"
+                      onChange={(e) => setGuias((list) => list.map((g, i) => (i === idx ? { ...g, especialidad: e.target.value } : g)))}
+                    />
+                  </label>
+                  <label>
+                    Celular
+                    <input
+                      value={guia.telefono || ''}
+                      placeholder="099..."
+                      onChange={(e) => setGuias((list) => list.map((g, i) => (i === idx ? { ...g, telefono: e.target.value } : g)))}
+                    />
+                  </label>
+                  <label>
+                    Correo
+                    <input
+                      type="email"
+                      value={guia.email || ''}
+                      placeholder="correo@ejemplo.com"
+                      onChange={(e) => setGuias((list) => list.map((g, i) => (i === idx ? { ...g, email: e.target.value } : g)))}
+                    />
+                  </label>
+                  <label>
+                    Biografía / descripción (opcional)
+                    <textarea
+                      rows={2}
+                      value={guia.bio || ''}
+                      onChange={(e) => setGuias((list) => list.map((g, i) => (i === idx ? { ...g, bio: e.target.value } : g)))}
+                    />
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={guia.activo !== false}
+                      onChange={(e) => setGuias((list) => list.map((g, i) => (i === idx ? { ...g, activo: e.target.checked } : g)))}
+                    />
+                    Visible en el portal
+                  </label>
+                  <button type="button" onClick={() => setGuias((list) => list.filter((_, i) => i !== idx))}>
+                    Eliminar guía
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setGuias((list) => [...list, emptyGuia()])}
+              >
+                + Agregar guía
+              </button>
+              <button type="submit" className="primary-button" disabled={saving}>Guardar cambios</button>
+            </form>
+          )}
+
+          {tabActiva === 'galeria' && (
+            <div className="config-form">
+              <p className="section-note">
+                Cargue aquí las fotografías oficiales del cantón (por ejemplo las de la carpeta institucional).
+                Estas se muestran primero en <strong>/galeria</strong> y en el inicio; las fotos de atractivos
+                y emprendimientos publicados se agregan después.
+              </p>
+              <label className="primary-button" style={{ display: 'inline-flex', cursor: saving ? 'wait' : 'pointer' }}>
+                {saving ? 'Subiendo…' : '+ Cargar fotografías'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  disabled={saving || !empresaId}
+                  onChange={handleSubirGaleria}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {!empresaId ? (
+                <p className="section-note">Guarde primero los datos del GAD para habilitar la galería.</p>
+              ) : null}
+
+              {galeriaLoading ? (
+                <div className="table-spinner" style={{ marginTop: '1rem' }}>
+                  <span className="loader" />
+                  Cargando galería…
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                    gap: '0.75rem',
+                    marginTop: '1.25rem',
+                  }}
+                >
+                  {fotosGaleria.map((foto) => (
+                    <div
+                      key={foto.id}
+                      style={{
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '0.75rem',
+                        overflow: 'hidden',
+                        background: '#fff',
+                      }}
+                    >
+                      <div style={{ aspectRatio: '1', background: '#f1f5f9' }}>
+                        {foto.url ? (
+                          <img
+                            src={mediaUrl(foto.url)}
+                            alt={foto.titulo || 'Galería'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        style={{ width: '100%', borderRadius: 0, border: 0, borderTop: '1px solid #e2e8f0' }}
+                        disabled={saving}
+                        onClick={() => handleEliminarGaleria(foto.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!galeriaLoading && fotosGaleria.length === 0 ? (
+                <p className="section-note" style={{ marginTop: '1rem' }}>
+                  Todavía no hay fotos del cantón. Suba JPG, PNG o WEBP.
+                </p>
+              ) : null}
             </div>
           )}
 

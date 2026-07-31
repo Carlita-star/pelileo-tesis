@@ -13,23 +13,22 @@ function urlDe(item) {
 
 /**
  * Galería estilo Baños:
- * - Miniaturas cuadradas (recorte solo para la grilla), sin espacio entre ellas.
- * - Al clic: lightbox con la imagen completa en su proporción original.
+ * - Miniaturas cuadradas (recorte solo para la grilla).
+ * - Al clic: lightbox con la imagen completa.
+ * - modoCompleto: muestra todas (página /galeria).
  */
-function GaleriaMasonry({ imagenes = [] }) {
-  const [visibles, setVisibles] = useState(INICIAL);
+function GaleriaMasonry({ imagenes = [], modoCompleto = false }) {
+  const [visibles, setVisibles] = useState(modoCompleto ? imagenes.length : INICIAL);
   const [lb, setLb] = useState(null);
 
   if (!imagenes.length) return null;
 
-  const tope = Math.min(imagenes.length, MAX_EN_INICIO);
-  const lista = imagenes.slice(0, visibles).map(urlDe).filter(Boolean);
-  const hayMas = visibles < tope;
-  const hayOcultasEnBD = imagenes.length > MAX_EN_INICIO;
+  const tope = modoCompleto ? imagenes.length : Math.min(imagenes.length, MAX_EN_INICIO);
+  const lista = imagenes.slice(0, modoCompleto ? imagenes.length : visibles).map(urlDe).filter(Boolean);
+  const hayMas = !modoCompleto && visibles < tope;
 
   return (
     <div>
-      {/* Cuadrícula 1:1 con separación fina entre fotos (estilo Baños) */}
       <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 sm:gap-1.5 lg:grid-cols-4">
         {lista.map((src, i) => (
           <button
@@ -49,21 +48,15 @@ function GaleriaMasonry({ imagenes = [] }) {
         ))}
       </div>
 
-      {(hayMas || hayOcultasEnBD) && (
+      {hayMas && (
         <div className="mt-10 text-center">
-          {hayMas ? (
-            <button
-              type="button"
-              onClick={() => setVisibles((n) => Math.min(n + PASO, tope))}
-              className="rounded-full bg-primario px-8 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-primario-oscuro"
-            >
-              Cargar más fotos
-            </button>
-          ) : (
-            <p className="text-sm text-slate-500">
-              Mostrando {tope} de {imagenes.length} fotos en el inicio.
-            </p>
-          )}
+          <button
+            type="button"
+            onClick={() => setVisibles((n) => Math.min(n + PASO, tope))}
+            className="rounded-full bg-primario px-8 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-primario-oscuro"
+          >
+            Cargar más fotos
+          </button>
         </div>
       )}
 

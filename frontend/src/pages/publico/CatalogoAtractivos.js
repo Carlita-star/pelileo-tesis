@@ -29,7 +29,7 @@ function CatalogoAtractivos() {
 
   useEffect(() => {
     let activo = true;
-    Promise.all([listarAtractivos(), obtenerCatalogosPublicos()])
+    Promise.all([listarAtractivos(), obtenerCatalogosPublicos({ tipo: 'atractivo' })])
       .then(([datos, cats]) => {
         if (!activo) return;
         setAtractivos(datos);

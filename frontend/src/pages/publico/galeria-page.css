@@ -1,0 +1,134 @@
+/* Página /galeria */
+
+.galeria-page {
+  background: #fff;
+  min-height: 60vh;
+}
+
+.galeria-page__hero {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(29, 158, 117, 0.14), transparent 55%),
+    linear-gradient(180deg, #f4f7f5 0%, #ffffff 100%);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.galeria-page__hero-inner {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 2.75rem;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .galeria-page__hero-inner {
+    padding: 3.75rem 1.5rem 3.25rem;
+  }
+}
+
+.galeria-page__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-primario, #1d9e75);
+}
+
+.galeria-page__title {
+  margin: 0.65rem 0 0;
+  font-family: Outfit, Manrope, system-ui, sans-serif;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.galeria-page__lead {
+  margin: 0.9rem auto 0;
+  max-width: 52rem;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #475569;
+}
+
+.galeria-page__meta {
+  margin-top: 1.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1.25rem;
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.galeria-page__back {
+  font-weight: 700;
+  color: var(--color-primario, #1d9e75) !important;
+  text-decoration: none;
+}
+
+.galeria-page__back:hover {
+  text-decoration: underline;
+}
+
+.galeria-page__body {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3.5rem;
+}
+
+@media (min-width: 640px) {
+  .galeria-page__body {
+    padding: 2.5rem 1.5rem 4rem;
+  }
+}
+
+.galeria-page__skeleton {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+@media (min-width: 640px) {
+  .galeria-page__skeleton {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .galeria-page__skeleton {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.galeria-page__skel {
+  aspect-ratio: 1;
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, #e2e8f0, #f1f5f9, #e2e8f0);
+  background-size: 200% 100%;
+  animation: gp-shimmer 1.2s ease-in-out infinite;
+}
+
+.galeria-page__empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #475569;
+}
+
+.galeria-page__empty-hint {
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+  color: #94a3b8;
+}
+
+@keyframes gp-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .galeria-page__skel {
+    animation: none;
+  }
+}

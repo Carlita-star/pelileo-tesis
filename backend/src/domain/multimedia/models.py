@@ -1,8 +1,12 @@
 from django.db import models
 class Multimedia(models.Model):
     TIPOS_ENTIDAD = [
-        ('atractivo', 'Atractivo'), ('ruta', 'Ruta'),
-        ('emprendimiento', 'Emprendimiento'), ('evento', 'Evento'), ('empresa', 'Empresa'),
+        ('atractivo', 'Atractivo'),
+        ('ruta', 'Ruta'),
+        ('emprendimiento', 'Emprendimiento'),
+        ('evento', 'Evento'),
+        ('empresa', 'Empresa'),
+        ('galeria', 'Galería del cantón'),
     ]
     TIPOS_ARCHIVO = [('imagen', 'Imagen'), ('video', 'Video'), ('documento', 'Documento')]
  

@@ -350,7 +350,45 @@ def atractivos_list(request):
 
 @require_GET
 def galeria_publica_list(request):
-    """Todas las imágenes activas de entidades publicadas (atractivos, rutas, emprendimientos, eventos)."""
+    """
+    Galería del portal (atractivos, rutas, emprendimientos, eventos + galería del cantón).
+    Orden: más recientes primero. Deduplica por URL.
+    """
+    from src.domain.empresa.models import Empresa
+
+    items = []
+    urls_vistas = set()
+
+    def agregar(medias, origen):
+        for media in medias:
+            if not media.archivo:
+                continue
+            url = build_media_url(media.archivo, request)
+            if not url:
+                continue
+            clave = url.split('?', 1)[0]
+            if clave in urls_vistas:
+                continue
+            urls_vistas.add(clave)
+            items.append({
+                'id': media.id,
+                'url': url,
+                'titulo': media.titulo or '',
+                'entidad_tipo': media.entidad_tipo,
+                'origen': origen,
+                'creado_en': media.creado_en.isoformat() if media.creado_en else '',
+            })
+
+    empresa = Empresa.objects.first()
+    if empresa:
+        oficiales = (
+            Multimedia.objects
+            .filter(entidad_tipo='galeria', entidad_id=empresa.id, activo=True)
+            .exclude(tipo__in=['video', 'documento'])
+            .order_by('-creado_en', '-principal', 'orden')
+        )
+        agregar(oficiales, 'canton')
+
     filtro = _filtro_publicado()
     grupos = [
         ('atractivo', list(Atractivo.objects.filter(**filtro).values_list('id', flat=True))),
@@ -364,32 +402,26 @@ def galeria_publica_list(request):
         if ids:
             condicion |= Q(entidad_tipo=tipo, entidad_id__in=ids)
 
-    if not condicion:
-        return JsonResponse({'results': []})
+    if condicion:
+        medias = (
+            Multimedia.objects
+            .filter(condicion, activo=True)
+            .exclude(tipo__in=['video', 'documento'])
+            .order_by('-creado_en', '-principal', 'orden')
+        )
+        agregar(medias, 'catalogo')
 
-    medias = (
-        Multimedia.objects
-        .filter(condicion, activo=True)
-        .exclude(tipo__in=['video', 'documento'])
-        .order_by('-principal', 'orden', '-creado_en')
-    )
+    items.sort(key=lambda x: x.get('creado_en') or '', reverse=True)
 
-    results = []
-    urls_vistas = set()
-    for media in medias:
-        if not media.archivo:
-            continue
-        url = build_media_url(media.archivo, request)
-        if not url or url in urls_vistas:
-            continue
-        urls_vistas.add(url)
-        results.append({
-            'url': url,
-            'titulo': media.titulo or '',
-            'entidad_tipo': media.entidad_tipo,
-        })
+    limite = request.GET.get('limite')
+    if limite:
+        try:
+            n = max(1, min(int(limite), 100))
+            items = items[:n]
+        except (TypeError, ValueError):
+            pass
 
-    return JsonResponse({'results': results})
+    return JsonResponse({'results': items})
 
 
 # Valores alineados con el formulario admin de rutas (general.dificultad).
@@ -410,22 +442,125 @@ ESTADOS_EVENTO_PORTAL = [
 @require_GET
 def catalogos_publicos_list(request):
     """
-    Opciones de filtro del portal público, tomadas de las tablas de catálogo.
-    Así categoría/parroquia coinciden con lo que se llena en el administrador.
+    Opciones de filtro del portal público.
+    Con ?tipo=atractivo|ruta|emprendimiento|evento solo devuelve
+    categorías/parroquias (y dificultades) usadas en registros publicados de ese apartado.
     """
-    categorias = [
-        {'id': c.id, 'nombre': c.nombre}
-        for c in Categoria.objects.filter(activo=True).order_by('nombre')
-    ]
-    parroquias = [
-        {'id': p.id, 'nombre': p.nombre}
-        for p in Parroquia.objects.filter(activo=True).order_by('nombre')
-    ]
+    tipo = (request.GET.get('tipo') or '').strip().lower()
+    filtro = _filtro_publicado()
+
+    if tipo == 'atractivo':
+        cat_ids = (
+            Atractivo.objects.filter(**filtro)
+            .exclude(categoria_id__isnull=True)
+            .values_list('categoria_id', flat=True)
+            .distinct()
+        )
+        par_ids = (
+            Atractivo.objects.filter(**filtro)
+            .exclude(parroquia_id__isnull=True)
+            .values_list('parroquia_id', flat=True)
+            .distinct()
+        )
+        categorias = [
+            {'id': c.id, 'nombre': c.nombre}
+            for c in Categoria.objects.filter(activo=True, id__in=cat_ids).order_by('nombre')
+        ]
+        parroquias = [
+            {'id': p.id, 'nombre': p.nombre}
+            for p in Parroquia.objects.filter(activo=True, id__in=par_ids).order_by('nombre')
+        ]
+        dificultades = DIFICULTADES_RUTA
+        estados_evento = ESTADOS_EVENTO_PORTAL
+    elif tipo == 'emprendimiento':
+        cat_ids = (
+            Emprendimiento.objects.filter(**filtro)
+            .exclude(categoria_id__isnull=True)
+            .values_list('categoria_id', flat=True)
+            .distinct()
+        )
+        par_ids = (
+            Emprendimiento.objects.filter(**filtro)
+            .exclude(parroquia_id__isnull=True)
+            .values_list('parroquia_id', flat=True)
+            .distinct()
+        )
+        categorias = [
+            {'id': c.id, 'nombre': c.nombre}
+            for c in Categoria.objects.filter(activo=True, id__in=cat_ids).order_by('nombre')
+        ]
+        parroquias = [
+            {'id': p.id, 'nombre': p.nombre}
+            for p in Parroquia.objects.filter(activo=True, id__in=par_ids).order_by('nombre')
+        ]
+        dificultades = DIFICULTADES_RUTA
+        estados_evento = ESTADOS_EVENTO_PORTAL
+    elif tipo == 'ruta':
+        categorias = []
+        par_ids = (
+            Ruta.objects.filter(**filtro)
+            .exclude(parroquia_id__isnull=True)
+            .values_list('parroquia_id', flat=True)
+            .distinct()
+        )
+        parroquias = [
+            {'id': p.id, 'nombre': p.nombre}
+            for p in Parroquia.objects.filter(activo=True, id__in=par_ids).order_by('nombre')
+        ]
+        alias_dificultad = {
+            'facil': {'facil', 'fácil', 'facíl'},
+            'moderado': {'moderado', 'media', 'medio'},
+            'dificil': {'dificil', 'difícil'},
+        }
+
+        def _norm_dif(valor):
+            return (valor or '').strip().lower().replace('á', 'a').replace('í', 'i').replace('é', 'e')
+
+        usadas = {
+            _norm_dif(r)
+            for r in Ruta.objects.filter(**filtro).values_list('dificultad', flat=True)
+            if r
+        }
+        dificultades = []
+        for d in DIFICULTADES_RUTA:
+            aliases = {_norm_dif(a) for a in alias_dificultad.get(d['valor'], {d['valor']})}
+            if usadas & aliases:
+                dificultades.append(d)
+        if not dificultades:
+            dificultades = DIFICULTADES_RUTA
+        estados_evento = ESTADOS_EVENTO_PORTAL
+    elif tipo == 'evento':
+        cat_ids = (
+            Evento.objects.filter(**filtro)
+            .exclude(categoria_id__isnull=True)
+            .values_list('categoria_id', flat=True)
+            .distinct()
+        )
+        categorias = [
+            {'id': c.id, 'nombre': c.nombre}
+            for c in Categoria.objects.filter(activo=True, id__in=cat_ids).order_by('nombre')
+        ]
+        parroquias = []
+        dificultades = DIFICULTADES_RUTA
+        estados_evento = ESTADOS_EVENTO_PORTAL
+    else:
+        categorias = [
+            {'id': c.id, 'nombre': c.nombre}
+            for c in Categoria.objects.filter(activo=True).order_by('nombre')
+        ]
+        parroquias = [
+            {'id': p.id, 'nombre': p.nombre}
+            for p in Parroquia.objects.filter(activo=True).order_by('nombre')
+        ]
+        dificultades = DIFICULTADES_RUTA
+        estados_evento = ESTADOS_EVENTO_PORTAL
+
     return JsonResponse({
         'categorias': categorias,
         'parroquias': parroquias,
-        'dificultades': DIFICULTADES_RUTA,
-        'estados_evento': ESTADOS_EVENTO_PORTAL,
+        'dificultades': dificultades,
+        'estados_evento': estados_evento,
+        'tipo': tipo or None,
     })
 
 

@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from decimal import Decimal, InvalidOperation
@@ -10,10 +11,12 @@ from src.domain.apariencia.rules import AparienciaRules
 from src.domain.auditorias.models import Auditoria
 from src.domain.empresa.models import (
     AparienciaSistema,
+    Autoridad,
     Configuracion,
     ConfiguracionFooter,
     ConfiguracionHeader,
     Empresa,
+    GuiaTuristico,
     MenuNavegacion,
     RedSocial,
 )
@@ -24,11 +27,53 @@ MENU_DEFAULT = [
     ('Rutas', '/rutas'),
     ('Emprendimientos', '/emprendimientos'),
     ('Eventos', '/eventos'),
+    ('Galería', '/galeria'),
 ]
 
-IMAGEN_TIPOS = ('logo_principal', 'logo_secundario', 'favicon', 'imagen_seccion_inicio')
+IMAGEN_TIPOS = (
+    'logo_principal',
+    'logo_secundario',
+    'favicon',
+    'imagen_seccion_inicio',
+    'autoridad_foto',
+    'guia_foto',
+)
 # Imágenes guardadas en tabla configuraciones (clave/valor), sin columna nueva en empresas.
 IMAGEN_CONFIG_TIPOS = ('imagen_seccion_inicio',)
+
+SOBRE_PELILEO_DATOS_DEFAULT = [
+    {
+        'etiqueta': 'Cantonización',
+        'valor': '22 de julio de 1860',
+        'detalle': 'Fundado en 1570 · reconstruido tras 1949',
+    },
+    {
+        'etiqueta': 'Sabores',
+        'valor': 'Cuy, fritada, hornado y empanadas',
+        'detalle': 'Tamales, caldo de gallina y chawarmishki',
+    },
+    {
+        'etiqueta': 'Vive el cantón',
+        'valor': 'Textiles, campo y naturaleza',
+        'detalle': 'Jeans, tejidos, agricultura y geositios UNESCO',
+    },
+]
+
+SOBRE_PELILEO_INTRO_DEFAULT = (
+    'En el corazón de Tungurahua, Pelileo te recibe con la fuerza del «Cantón Azul»: '
+    'jeans, artesanía, paisajes andinos y la viva cultura del pueblo Salasaka. '
+    'Un destino listo para recorrer, saborear y fotografiar.'
+)
+
+AUTORIDADES_INTRO_DEFAULT = (
+    'Conoce a las autoridades del GAD Municipal de Pelileo que impulsan el desarrollo '
+    'y el turismo del cantón.'
+)
+
+GUIAS_INTRO_DEFAULT = (
+    'Guías de turismo locales listos para acompañarte en recorridos culturales, '
+    'de naturaleza y de aventura por el cantón San Pedro de Pelileo.'
+)
 
 
 class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
@@ -176,7 +221,70 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
             'longitud': float(empresa.longitud) if empresa.longitud is not None else None,
             'eslogan': self._get_config_valor(empresa, 'eslogan', 'Turismo · GAD Municipal'),
             'estado': empresa.estado,
+            'sobre_pelileo_intro': self._get_config_valor(
+                empresa, 'sobre_pelileo_intro', SOBRE_PELILEO_INTRO_DEFAULT
+            ),
+            'sobre_pelileo_datos': self._get_sobre_pelileo_datos(empresa),
+            'autoridades_intro': self._get_config_valor(
+                empresa, 'autoridades_intro', AUTORIDADES_INTRO_DEFAULT
+            ),
+            'autoridades_enlace': self._get_config_valor(empresa, 'autoridades_enlace', ''),
+            'guias_intro': self._get_config_valor(empresa, 'guias_intro', GUIAS_INTRO_DEFAULT),
+            'guias_enlace': self._get_config_valor(empresa, 'guias_enlace', ''),
         }
+
+    def _get_sobre_pelileo_datos(self, empresa: Empresa) -> List[dict]:
+        raw = self._get_config_valor(empresa, 'sobre_pelileo_datos', '')
+        if not raw:
+            return list(SOBRE_PELILEO_DATOS_DEFAULT)
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list) and data:
+                clean = []
+                for item in data[:6]:
+                    if not isinstance(item, dict):
+                        continue
+                    clean.append({
+                        'etiqueta': (item.get('etiqueta') or '').strip(),
+                        'valor': (item.get('valor') or '').strip(),
+                        'detalle': (item.get('detalle') or '').strip(),
+                    })
+                return clean or list(SOBRE_PELILEO_DATOS_DEFAULT)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+        return list(SOBRE_PELILEO_DATOS_DEFAULT)
+
+    def _serializar_autoridades(self, empresa: Empresa) -> List[dict]:
+        return [
+            {
+                'id': a.id,
+                'nombre': a.nombre,
+                'cargo': a.cargo or '',
+                'bio': a.bio or '',
+                'foto': a.foto,
+                'foto_url': self._media_url(a.foto),
+                'orden': a.orden,
+                'activo': a.activo,
+            }
+            for a in empresa.autoridades.order_by('orden', 'id')
+        ]
+
+    def _serializar_guias(self, empresa: Empresa) -> List[dict]:
+        return [
+            {
+                'id': g.id,
+                'nombre': g.nombre,
+                'especialidad': g.especialidad or '',
+                'telefono': g.telefono or '',
+                'email': g.email or '',
+                'bio': g.bio or '',
+                'foto': g.foto,
+                'foto_url': self._media_url(g.foto),
+                'orden': g.orden,
+                'activo': g.activo,
+            }
+            for g in empresa.guias_turisticos.order_by('orden', 'id')
+        ]
 
     def _serializar_apariencia(self, apariencia: AparienciaSistema) -> dict:
         return {
@@ -263,6 +371,8 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
             'header': self._serializar_header(header),
             'footer': self._serializar_footer(footer),
             'redes': self._serializar_redes(empresa),
+            'autoridades': self._serializar_autoridades(empresa),
+            'guias': self._serializar_guias(empresa),
             'menus': self._serializar_menus_plano(empresa),
             'configuraciones': configuraciones,
         }
@@ -298,6 +408,34 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         secundario = apariencia.get('color_secundario') or '#F9A825'
         terciario = apariencia.get('color_terciario') or '#2563EB'
 
+        autoridades_portal = [
+            {
+                'id': a['id'],
+                'nombre': a['nombre'],
+                'cargo': a['cargo'],
+                'bio': a['bio'],
+                'fotoUrl': a['foto_url'],
+                'orden': a['orden'],
+            }
+            for a in data.get('autoridades') or []
+            if a.get('activo')
+        ]
+
+        guias_portal = [
+            {
+                'id': g['id'],
+                'nombre': g['nombre'],
+                'especialidad': g['especialidad'],
+                'telefono': g['telefono'],
+                'email': g['email'],
+                'bio': g['bio'],
+                'fotoUrl': g['foto_url'],
+                'orden': g['orden'],
+            }
+            for g in data.get('guias') or []
+            if g.get('activo')
+        ]
+
         return {
             'empresa': empresa,
             'apariencia': apariencia,
@@ -305,6 +443,8 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
             'footer': footer,
             'menus': data['menus'],
             'redes_sociales': data['redes'],
+            'autoridades': autoridades_portal,
+            'guias': guias_portal,
             'configuraciones': data['configuraciones'],
             'nombreSistema': empresa.get('nombre_comercial') or empresa.get('nombre'),
             'eslogan': empresa.get('eslogan'),
@@ -316,6 +456,12 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
             'logoSecundarioUrl': empresa.get('logo_secundario_url'),
             'faviconUrl': empresa.get('favicon_url'),
             'imagenSeccionInicioUrl': empresa.get('imagen_seccion_inicio_url'),
+            'sobrePelileoIntro': empresa.get('sobre_pelileo_intro'),
+            'sobrePelileoDatos': empresa.get('sobre_pelileo_datos'),
+            'autoridadesIntro': empresa.get('autoridades_intro'),
+            'autoridadesEnlace': empresa.get('autoridades_enlace') or '',
+            'guiasIntro': empresa.get('guias_intro'),
+            'guiasEnlace': empresa.get('guias_enlace') or '',
             'color_primario': primario,
             'color_secundario': secundario,
             'color_terciario': terciario,
@@ -444,6 +590,125 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'redes'})
         return self.obtener_completo()
 
+    def guardar_sobre_pelileo(self, payload: dict, actor_id: int) -> Dict[str, Any]:
+        empresa = self._get_or_create_empresa()
+        intro = (payload.get('intro') or payload.get('sobre_pelileo_intro') or '').strip()
+        if intro:
+            self._set_config_valor(
+                empresa, 'sobre_pelileo_intro', intro, 'Texto introductorio de Sobre Pelileo'
+            )
+
+        datos = payload.get('datos') or payload.get('sobre_pelileo_datos') or []
+        clean = []
+        if isinstance(datos, list):
+            for item in datos[:6]:
+                if not isinstance(item, dict):
+                    continue
+                etiqueta = (item.get('etiqueta') or '').strip()
+                valor = (item.get('valor') or '').strip()
+                detalle = (item.get('detalle') or '').strip()
+                if not etiqueta and not valor:
+                    continue
+                clean.append({'etiqueta': etiqueta, 'valor': valor, 'detalle': detalle})
+        if clean:
+            self._set_config_valor(
+                empresa,
+                'sobre_pelileo_datos',
+                json.dumps(clean, ensure_ascii=False),
+                'Bloques informativos de Sobre Pelileo',
+            )
+
+        self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'sobre_pelileo'})
+        return self.obtener_completo()
+
+    def guardar_autoridades(self, payload: dict, actor_id: int) -> Dict[str, Any]:
+        empresa = self._get_or_create_empresa()
+
+        intro = (payload.get('intro') or payload.get('autoridades_intro') or '').strip()
+        self._set_config_valor(
+            empresa, 'autoridades_intro', intro or AUTORIDADES_INTRO_DEFAULT, 'Intro sección autoridades'
+        )
+        enlace = (payload.get('enlace') or payload.get('autoridades_enlace') or '').strip()
+        self._set_config_valor(
+            empresa, 'autoridades_enlace', enlace, 'Enlace Ver todas las autoridades'
+        )
+
+        items = payload.get('autoridades') or []
+        ids_enviados = set()
+
+        for idx, item in enumerate(items):
+            nombre = (item.get('nombre') or '').strip()
+            if not nombre:
+                continue
+            autoridad_id = item.get('id')
+            fields = {
+                'nombre': nombre,
+                'cargo': (item.get('cargo') or '').strip() or None,
+                'bio': (item.get('bio') or '').strip() or None,
+                'foto': (item.get('foto') or '').strip() or None,
+                'orden': int(item.get('orden', idx)),
+                'activo': bool(item.get('activo', True)),
+            }
+            if autoridad_id:
+                autoridad = Autoridad.objects.filter(id=autoridad_id, empresa=empresa).first()
+                if autoridad:
+                    for k, v in fields.items():
+                        setattr(autoridad, k, v)
+                    autoridad.save()
+                    ids_enviados.add(autoridad.id)
+            else:
+                autoridad = Autoridad.objects.create(empresa=empresa, **fields)
+                ids_enviados.add(autoridad.id)
+
+        Autoridad.objects.filter(empresa=empresa).exclude(id__in=ids_enviados).delete()
+        self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'autoridades'})
+        return self.obtener_completo()
+
+    def guardar_guias(self, payload: dict, actor_id: int) -> Dict[str, Any]:
+        empresa = self._get_or_create_empresa()
+
+        intro = (payload.get('intro') or payload.get('guias_intro') or '').strip()
+        self._set_config_valor(
+            empresa, 'guias_intro', intro or GUIAS_INTRO_DEFAULT, 'Intro sección guías turísticos'
+        )
+        enlace = (payload.get('enlace') or payload.get('guias_enlace') or '').strip()
+        self._set_config_valor(
+            empresa, 'guias_enlace', enlace, 'Enlace Ver todos los guías'
+        )
+
+        items = payload.get('guias') or []
+        ids_enviados = set()
+
+        for idx, item in enumerate(items):
+            nombre = (item.get('nombre') or '').strip()
+            if not nombre:
+                continue
+            guia_id = item.get('id')
+            fields = {
+                'nombre': nombre,
+                'especialidad': (item.get('especialidad') or item.get('cargo') or '').strip() or None,
+                'telefono': (item.get('telefono') or '').strip() or None,
+                'email': (item.get('email') or '').strip() or None,
+                'bio': (item.get('bio') or '').strip() or None,
+                'foto': (item.get('foto') or '').strip() or None,
+                'orden': int(item.get('orden', idx)),
+                'activo': bool(item.get('activo', True)),
+            }
+            if guia_id:
+                guia = GuiaTuristico.objects.filter(id=guia_id, empresa=empresa).first()
+                if guia:
+                    for k, v in fields.items():
+                        setattr(guia, k, v)
+                    guia.save()
+                    ids_enviados.add(guia.id)
+            else:
+                guia = GuiaTuristico.objects.create(empresa=empresa, **fields)
+                ids_enviados.add(guia.id)
+
+        GuiaTuristico.objects.filter(empresa=empresa).exclude(id__in=ids_enviados).delete()
+        self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'guias'})
+        return self.obtener_completo()
+
     def guardar_header_footer(self, payload: dict, actor_id: int) -> Dict[str, Any]:
         empresa = self._get_or_create_empresa()
         header = self._get_or_create_header(empresa)
@@ -533,7 +798,14 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'mapa'})
         return self.obtener_completo()
 
-    def guardar_imagen(self, tipo: str, archivo, actor_id: int) -> Dict[str, Any]:
+    def guardar_imagen(
+        self,
+        tipo: str,
+        archivo,
+        actor_id: int,
+        autoridad_id: Optional[int] = None,
+        guia_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
         if tipo not in IMAGEN_TIPOS:
             raise ValueError('Tipo de imagen no válido.')
         if not archivo:
@@ -544,7 +816,12 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         if ext not in ('.jpg', '.jpeg', '.png', '.webp', '.ico', '.gif'):
             raise ValueError('Formato de imagen no permitido.')
 
-        dest_dir = settings.MEDIA_ROOT / 'empresa'
+        if tipo == 'autoridad_foto':
+            dest_dir = settings.MEDIA_ROOT / 'empresa' / 'autoridades'
+        elif tipo == 'guia_foto':
+            dest_dir = settings.MEDIA_ROOT / 'empresa' / 'guias'
+        else:
+            dest_dir = settings.MEDIA_ROOT / 'empresa'
         dest_dir.mkdir(parents=True, exist_ok=True)
         filename = f'{tipo}_{uuid.uuid4().hex[:8]}{ext}'
         filepath = dest_dir / filename
@@ -552,6 +829,40 @@ class DjangoConfiguracionAdminRepository(ConfiguracionAdminRepositoryPort):
         with open(filepath, 'wb+') as dest:
             for chunk in archivo.chunks():
                 dest.write(chunk)
+
+        if tipo == 'autoridad_foto':
+            rel_path = f'empresa/autoridades/{filename}'
+            autoridad = None
+            if autoridad_id:
+                autoridad = Autoridad.objects.filter(id=autoridad_id, empresa=empresa).first()
+                if autoridad:
+                    autoridad.foto = rel_path
+                    autoridad.save(update_fields=['foto', 'actualizado_en'])
+            self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'autoridades', 'tipo': tipo})
+            return {
+                'tipo': tipo,
+                'path': rel_path,
+                'url': self._media_url(rel_path),
+                'autoridad_id': autoridad.id if autoridad else None,
+                'autoridades': self._serializar_autoridades(empresa),
+            }
+
+        if tipo == 'guia_foto':
+            rel_path = f'empresa/guias/{filename}'
+            guia = None
+            if guia_id:
+                guia = GuiaTuristico.objects.filter(id=guia_id, empresa=empresa).first()
+                if guia:
+                    guia.foto = rel_path
+                    guia.save(update_fields=['foto', 'actualizado_en'])
+            self._registrar_auditoria(actor_id, 'EDITAR', {'seccion': 'guias', 'tipo': tipo})
+            return {
+                'tipo': tipo,
+                'path': rel_path,
+                'url': self._media_url(rel_path),
+                'guia_id': guia.id if guia else None,
+                'guias': self._serializar_guias(empresa),
+            }
 
         rel_path = f'empresa/{filename}'
         if tipo in IMAGEN_CONFIG_TIPOS:

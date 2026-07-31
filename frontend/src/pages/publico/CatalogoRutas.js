@@ -21,7 +21,7 @@ function CatalogoRutas() {
 
   useEffect(() => {
     let activo = true;
-    Promise.all([listarRutas(), obtenerCatalogosPublicos()])
+    Promise.all([listarRutas(), obtenerCatalogosPublicos({ tipo: 'ruta' })])
       .then(([datos, cats]) => {
         if (!activo) return;
         setRutas(datos);

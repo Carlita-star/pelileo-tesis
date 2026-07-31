@@ -1,0 +1,166 @@
+/* Galería del inicio — foto icónica + mosaico (modelo Baños / documento ESPE) */
+
+.galeria-inicio {
+  background: #fff;
+  padding: 3.5rem 1rem 4rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+@media (min-width: 640px) {
+  .galeria-inicio {
+    padding: 4rem 1.5rem 4.5rem;
+  }
+}
+
+.galeria-inicio__head {
+  max-width: 42rem;
+  margin: 0 auto 2rem;
+  text-align: center;
+}
+
+.galeria-inicio__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-terciario, #2563eb);
+}
+
+.galeria-inicio__titulo {
+  margin: 0.55rem 0 0;
+  font-family: Outfit, Manrope, system-ui, sans-serif;
+  font-size: clamp(1.85rem, 4vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.galeria-inicio__desc {
+  margin: 0.75rem 0 0;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.galeria-inicio__mosaico {
+  max-width: 68rem;
+  margin: 0 auto;
+  display: grid;
+  gap: 0.55rem;
+}
+
+@media (min-width: 900px) {
+  .galeria-inicio__mosaico {
+    grid-template-columns: 1.35fr 1fr;
+    gap: 0.65rem;
+    min-height: 420px;
+  }
+}
+
+.galeria-inicio__hero,
+.galeria-inicio__tile {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: #e2e8f0;
+  cursor: pointer;
+}
+
+.galeria-inicio__hero {
+  aspect-ratio: 4 / 3;
+  border-radius: 0.85rem;
+}
+
+@media (min-width: 900px) {
+  .galeria-inicio__hero {
+    aspect-ratio: auto;
+    height: 100%;
+    min-height: 420px;
+  }
+}
+
+.galeria-inicio__hero img,
+.galeria-inicio__tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  transition: transform 0.5s ease;
+}
+
+.galeria-inicio__hero:hover img,
+.galeria-inicio__tile:hover img {
+  transform: scale(1.05);
+}
+
+.galeria-inicio__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+@media (min-width: 900px) {
+  .galeria-inicio__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    height: 100%;
+    min-height: 420px;
+  }
+}
+
+.galeria-inicio__tile {
+  aspect-ratio: 1 / 1;
+  border-radius: 0.65rem;
+}
+
+@media (min-width: 900px) {
+  .galeria-inicio__tile {
+    aspect-ratio: auto;
+    min-height: 0;
+  }
+}
+
+.galeria-inicio__footer {
+  max-width: 68rem;
+  margin: 1.5rem auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.galeria-inicio__cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  background: var(--color-primario, #1d9e75);
+  color: #fff !important;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--color-primario, #1d9e75) 70%, transparent);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.galeria-inicio__cta:hover {
+  background: var(--color-primario-oscuro, #157a5a);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .galeria-inicio__hero img,
+  .galeria-inicio__tile img,
+  .galeria-inicio__cta {
+    transition: none !important;
+  }
+}

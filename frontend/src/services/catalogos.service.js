@@ -1,12 +1,15 @@
 import { api } from './api';
 
 /**
- * Catálogos activos desde la BD (mismas tablas que usa el administrador
- * al llenar categoría, parroquia, etc.).
+ * Catálogos activos desde la BD (mismas tablas que usa el administrador).
+ * @param {{ tipo?: 'atractivo'|'ruta'|'emprendimiento'|'evento' }} [opciones]
+ *   Con tipo, solo categorías/parroquias usadas en registros publicados de ese apartado.
  */
-export async function obtenerCatalogosPublicos() {
+export async function obtenerCatalogosPublicos(opciones = {}) {
+  const tipo = opciones.tipo || '';
+  const query = tipo ? `?tipo=${encodeURIComponent(tipo)}` : '';
   try {
-    const data = await api.get('/catalogos/publicos/');
+    const data = await api.get(`/catalogos/publicos/${query}`);
     return {
       categorias: data?.categorias || [],
       parroquias: data?.parroquias || [],
